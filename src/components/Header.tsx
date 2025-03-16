@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import Link from "next/link";
-import { FiMenu, FiX, FiShoppingCart, FiHeart } from "react-icons/fi";
+import { FiMenu, FiX, FiShoppingCart, FiHeart, FiUser } from "react-icons/fi";
 import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const { user, logout } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // ハートボタンクリック時の処理
   const handleFavoritesClick = (e: React.MouseEvent) => {
@@ -28,6 +31,17 @@ export default function Header() {
       // 異なるページからの遷移
       router.push("/cartAndFavorites?section=favorites");
     }
+  };
+
+  // ユーザーメニュートグル
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  // ログアウト処理
+  const handleLogout = async () => {
+    await logout();
+    setShowUserMenu(false);
   };
 
   return (
@@ -59,7 +73,7 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* 右側：アイコンとログイン */}
+        {/* 右側：アイコンとログイン/ユーザーアイコン */}
         <div className="flex items-center gap-4 sm:gap-8">
           <a
             href="/cartAndFavorites"
@@ -74,12 +88,53 @@ export default function Header() {
           >
             <FiShoppingCart className="w-6 h-6" />
           </Link>
-          <Link
-            href="/auth/login"
-            className="hidden md:block text-gray-700 hover:text-gray-900"
-          >
-            ログイン
-          </Link>
+
+          {user ? (
+            <div className="relative">
+              <button
+                className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
+                onClick={toggleUserMenu}
+              >
+                <FiUser className="w-6 h-6" />
+              </button>
+
+              {/* ユーザーメニュードロップダウン */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                  <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                    {user.email}
+                  </div>
+                  <Link
+                    href="/mypage"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    マイページ
+                  </Link>
+                  <Link
+                    href="/orders"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    注文履歴
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    ログアウト
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="hidden md:block text-gray-700 hover:text-gray-900"
+            >
+              ログイン
+            </Link>
+          )}
         </div>
       </header>
 
@@ -108,13 +163,31 @@ export default function Header() {
             >
               About
             </Link>
-            <Link
-              href="/auth/login"
-              className="text-gray-700 hover:text-gray-900"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              ログイン
-            </Link>
+            {!user ? (
+              <Link
+                href="/auth/login"
+                className="text-gray-700 hover:text-gray-900"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                ログイン
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/account"
+                  className="text-gray-700 hover:text-gray-900"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  アカウント設定
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-left text-gray-700 hover:text-gray-900"
+                >
+                  ログアウト
+                </button>
+              </>
+            )}
           </nav>
         </div>
       )}

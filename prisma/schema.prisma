@@ -20,6 +20,17 @@ model User {
   updatedAt DateTime @updatedAt
   orders    Order[]
   cart      Cart?
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
 }
 
 model Product {

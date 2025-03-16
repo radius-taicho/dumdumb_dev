@@ -1,18 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/auth-context";
 
 const LoginPage: NextPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { login, user, error } = useAuth();
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 既にログインしている場合はリダイレクト
+  useEffect(() => {
+    if (user) {
+      router.push("/");
+    }
+  }, [user, router]);
+
+  // 認証エラーメッセージの表示
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+    }
+  }, [error]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // ログイン処理をここに実装
-    console.log("Login attempt with:", { email, password, rememberMe });
+    
+    // エラーメッセージをクリア
+    setErrorMessage("");
+    
+    // 入力検証
+    if (!email || !password) {
+      setErrorMessage("メールアドレスとパスワードを入力してください");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const success = await login(email, password, rememberMe);
+      
+      if (success) {
+        // ログイン成功したらホームページにリダイレクト
+        router.push("/");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setErrorMessage("ログイン処理中にエラーが発生しました");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -27,7 +69,13 @@ const LoginPage: NextPage = () => {
             dumdumbアカウントにログイン
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errorMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
             <div>
               <label
                 htmlFor="email"
@@ -38,10 +86,13 @@ const LoginPage: NextPage = () => {
               <input
                 type="email"
                 id="email"
+                name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
                 required
+                disabled={isSubmitting}
+                autoComplete="username email"
               />
             </div>
 
@@ -55,10 +106,13 @@ const LoginPage: NextPage = () => {
               <input
                 type="password"
                 id="password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
                 required
+                disabled={isSubmitting}
+                autoComplete="current-password"
               />
             </div>
 
@@ -71,6 +125,7 @@ const LoginPage: NextPage = () => {
                   checked={rememberMe}
                   onChange={() => setRememberMe(!rememberMe)}
                   className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                  disabled={isSubmitting}
                 />
                 <label
                   htmlFor="remember-me"
@@ -92,9 +147,10 @@ const LoginPage: NextPage = () => {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors"
+              className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
             >
-              ログイン
+              {isSubmitting ? "ログイン中..." : "ログイン"}
             </button>
           </form>
 
