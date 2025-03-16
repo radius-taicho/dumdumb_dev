@@ -54,7 +54,7 @@ export default async function handler(
     // 更新されたカートを取得
     const updatedCart = await prisma.cart.findUnique({
       where: { userId },
-      include: { items: { include: { product: true } } },
+      include: { items: { include: { item: true } } },
     });
 
     return res.status(200).json({

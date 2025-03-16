@@ -188,8 +188,8 @@ const RestockNotification: React.FC = () => {
   );
 };
 
-// ProductInfo Component
-const ProductInfo: React.FC = () => {
+//  ItemInfo Component
+const ItemInfo: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
@@ -318,8 +318,8 @@ const RelatedItems: React.FC = () => {
   );
 };
 
-// Main ProductDetailPage Component
-const ProductDetailPage: NextPage = () => {
+// Main ItemDetailPage Component
+const ItemDetailPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
 
@@ -332,7 +332,7 @@ const ProductDetailPage: NextPage = () => {
 
       <section className="flex relative gap-10 items-center px-8 pt-16 max-md:px-5">
         <ImageGallery />
-        <ProductInfo />
+        <ItemInfo />
         <RestockNotification />
       </section>
 
@@ -342,4 +342,4 @@ const ProductDetailPage: NextPage = () => {
   );
 };
 
-export default ProductDetailPage;
+export default ItemDetailPage;
