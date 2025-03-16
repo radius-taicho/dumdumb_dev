@@ -1,22 +1,77 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useAuth } from "@/contexts/auth-context";
+import { CheckCircle, XCircle } from "lucide-react";
 
 const RegisterPage: NextPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const { register, user, error } = useAuth();
+  const router = useRouter();
+
+  // パスワード要件チェック
+  const hasMinLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+  // パスワード強度計算（0-4のスケール）
+  const passwordStrength = [
+    hasMinLength,
+    hasUpperCase,
+    hasLowerCase,
+    hasDigit,
+    hasSpecialChar,
+  ].filter(Boolean).length;
+
+  // パスワード強度のラベルとカラー
+  const getStrengthLabel = () => {
+    if (passwordStrength === 0)
+      return { text: "入力してください", color: "bg-gray-200" };
+    if (passwordStrength <= 2) return { text: "弱い", color: "bg-red-500" };
+    if (passwordStrength <= 3) return { text: "普通", color: "bg-yellow-500" };
+    if (passwordStrength <= 4) return { text: "強い", color: "bg-green-500" };
+    return { text: "非常に強い", color: "bg-green-600" };
+  };
+
+  const strengthLabel = getStrengthLabel();
+
+  // 既にログインしている場合はリダイレクト
+  useEffect(() => {
+    if (user) {
+      router.push("/");
+    }
+  }, [user, router]);
+
+  // 認証エラーメッセージの表示
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+    }
+  }, [error]);
 
   const validatePassword = () => {
+    // パスワードの一致確認
     if (password !== confirmPassword) {
       setPasswordError("パスワードが一致しません");
       return false;
     }
 
-    if (password.length < 8) {
-      setPasswordError("パスワードは8文字以上必要です");
+    // パスワード強度の検証
+    if (passwordStrength < 3) {
+      setPasswordError("パスワードの要件を満たしていません");
       return false;
     }
 
@@ -24,17 +79,52 @@ const RegisterPage: NextPage = () => {
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // エラーメッセージをクリア
+    setErrorMessage("");
 
     // パスワード検証
     if (!validatePassword()) {
       return;
     }
 
-    // 新規登録処理をここに実装
-    console.log("Register attempt with:", { email, password });
+    // 入力検証
+    if (!email || !password) {
+      setErrorMessage("メールアドレスとパスワードを入力してください");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const success = await register(email, password);
+
+      if (success) {
+        // 登録成功したらホームページにリダイレクト
+        router.push("/");
+      }
+    } catch (err) {
+      console.error("Registration error:", err);
+      setErrorMessage("登録処理中にエラーが発生しました");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // 要件表示用のコンポーネント
+  const RequirementItem = ({ met, text }: { met: boolean; text: string }) => (
+    <div className="flex items-center space-x-2">
+      {met ? (
+        <CheckCircle className="w-4 h-4 text-green-500" />
+      ) : (
+        <XCircle className="w-4 h-4 text-gray-400" />
+      )}
+      <span className={`text-xs ${met ? "text-green-600" : "text-gray-600"}`}>
+        {text}
+      </span>
+    </div>
+  );
 
   return (
     <>
@@ -48,7 +138,13 @@ const RegisterPage: NextPage = () => {
             dumdumbアカウントを作成
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {errorMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on" method="post">
             <div>
               <label
                 htmlFor="email"
@@ -59,10 +155,13 @@ const RegisterPage: NextPage = () => {
               <input
                 type="email"
                 id="email"
+                name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
                 required
+                disabled={isSubmitting}
+                autoComplete="username email"
               />
             </div>
 
@@ -73,17 +172,68 @@ const RegisterPage: NextPage = () => {
               >
                 パスワード
               </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                半角英数字記号8文字以上
-              </p>
+              <div className="relative">
+                <input
+                  type="password"
+                  id="password"
+                  name="new-password"
+                  ref={passwordInputRef}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  required
+                  minLength={8}
+                  disabled={isSubmitting}
+                  autoComplete="new-password"
+                />
+                {password && (
+                  <div className="absolute right-2 top-2.5 flex items-center">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full text-white ${strengthLabel.color}`}
+                    >
+                      {strengthLabel.text}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+                <p className="text-xs text-gray-700">
+                  <span className="text-gray-700">
+                    入力欄をクリックすると、ブラウザの自動パスワード生成機能が表示されます
+                  </span>
+                </p>
+
+                {/* パスワード入力欄にフォーカスがあるとき、または入力済みでエラーがある場合のみ表示 */}
+                {(passwordFocused || (password && passwordStrength < 3)) && (
+                  <>
+                    <p className="text-xs text-gray-600 mb-2">
+                      安全なパスワードの条件：
+                    </p>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      <RequirementItem met={hasMinLength} text="8文字以上" />
+                      <RequirementItem
+                        met={hasUpperCase}
+                        text="大文字（A-Z）を含む"
+                      />
+                      <RequirementItem
+                        met={hasLowerCase}
+                        text="小文字（a-z）を含む"
+                      />
+                      <RequirementItem
+                        met={hasDigit}
+                        text="数字（0-9）を含む"
+                      />
+                      <RequirementItem
+                        met={hasSpecialChar}
+                        text="記号（!@#$%など）を含む"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             <div>
@@ -96,10 +246,13 @@ const RegisterPage: NextPage = () => {
               <input
                 type="password"
                 id="confirm-password"
+                name="confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
                 required
+                disabled={isSubmitting}
+                autoComplete="new-password"
               />
               {passwordError && (
                 <p className="mt-1 text-xs text-red-500">{passwordError}</p>
@@ -108,9 +261,10 @@ const RegisterPage: NextPage = () => {
 
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors"
+              className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
             >
-              アカウント作成
+              {isSubmitting ? "アカウント作成中..." : "アカウント作成"}
             </button>
           </form>
 

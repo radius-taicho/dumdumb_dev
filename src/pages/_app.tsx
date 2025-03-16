@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import Layout from '@/components/Layout';
 import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
+import { AuthProvider } from '@/contexts/auth-context';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,8 +22,10 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
   const getLayout = Component.getLayout ?? ((page) => <Layout>{page}</Layout>);
 
   return (
-    <div className={inter.className}>
-      {getLayout(<Component {...pageProps} />)}
-    </div>
+    <AuthProvider>
+      <div className={inter.className}>
+        {getLayout(<Component {...pageProps} />)}
+      </div>
+    </AuthProvider>
   );
 }
