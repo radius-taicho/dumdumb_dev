@@ -3,8 +3,9 @@ import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/auth-context";
+import { useSession } from "next-auth/react"; 
 import { CheckCircle, XCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const ResetPasswordPage: NextPage = () => {
   const [password, setPassword] = useState("");
@@ -16,7 +17,7 @@ const ResetPasswordPage: NextPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTokenValidating, setIsTokenValidating] = useState(true);
 
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   // パスワード要件チェック
@@ -62,10 +63,10 @@ const ResetPasswordPage: NextPage = () => {
 
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
-    if (user) {
+    if (status === 'authenticated') {
       router.push("/");
     }
-  }, [user, router]);
+  }, [status, router]);
 
   // トークン検証
   const validateToken = async (token: string) => {
@@ -144,6 +145,7 @@ const ResetPasswordPage: NextPage = () => {
       }
       
       // 成功メッセージを表示
+      toast.success("パスワードが正常にリセットされました");
       setSuccessMessage(data.message || "パスワードが正常にリセットされました。新しいパスワードでログインしてください。");
       setPassword("");
       setConfirmPassword("");

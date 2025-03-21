@@ -4,7 +4,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { ReactElement } from "react";
 
-const CheckoutCompletePage: NextPage = () => {
+const ThankYouForPurchasePage: NextPage = () => {
   const router = useRouter();
   const [opacity, setOpacity] = useState(1);
   const [blur, setBlur] = useState(0);
@@ -83,6 +83,6 @@ const CheckoutCompletePage: NextPage = () => {
 };
 
 // このページではLayoutを使用しないことを指定
-CheckoutCompletePage.getLayout = (page: ReactElement) => page;
+ThankYouForPurchasePage.getLayout = (page: ReactElement) => page;
 
-export default CheckoutCompletePage;
+export default ThankYouForPurchasePage;

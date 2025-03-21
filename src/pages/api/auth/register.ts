@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { registerUser, generateToken } from '@/lib/auth';
-import { setCookie } from 'cookies-next';
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // POSTリクエスト以外は許可しない
@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'メールアドレスとパスワードは必須です' });
     }
 
-    // パスワードの詳細なバリデーション
+    // パスワードの長さチェック
     if (password.length < 8) {
       return res.status(400).json({ message: 'パスワードは8文字以上必要です' });
     }
@@ -25,41 +25,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasDigit = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-    const passwordStrength = [hasUpperCase, hasLowerCase, hasDigit, hasSpecialChar].filter(Boolean).length;
+    const passwordStrength = [hasUpperCase, hasLowerCase, hasDigit].filter(Boolean).length;
 
-    if (passwordStrength < 3) {
+    if (passwordStrength < 2) {
       return res.status(400).json({ 
-        message: 'パスワードは大文字、小文字、数字、記号のうち少なくとも3種類を含める必要があります' 
+        message: 'パスワードは大文字(A-Z)、小文字(a-z)、数字(0-9)のうち少なくとも2種類を含める必要があります' 
       });
     }
 
-    // ユーザー登録
-    const user = await registerUser(email, password);
+    // 既存のユーザーチェック
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
-    // 登録失敗（メールアドレス重複など）
-    if (!user) {
+    if (existingUser) {
       return res.status(409).json({ message: 'このメールアドレスは既に使用されています' });
     }
 
-    // JWTトークン生成
-    const token = generateToken(user);
+    // パスワードのハッシュ化
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Cookie設定
-    setCookie('auth_token', token, { 
-      req, 
-      res, 
-      maxAge: 60 * 60 * 24 * 7, // 7日間
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', 
-      sameSite: 'strict'
+    // ユーザー作成
+    const user = await prisma.user.create({
+      data: {
+        email,
+        hashedPassword,
+        role: 'USER',
+      },
     });
 
     // 成功レスポンス
     return res.status(201).json({
       message: 'ユーザー登録に成功しました',
-      user
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);

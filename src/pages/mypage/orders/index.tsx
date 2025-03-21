@@ -1,8 +1,11 @@
 import React from "react";
-import { NextPage } from "next";
+import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../api/auth/[...nextauth]";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // 仮の注文データ
 const dummyOrders = [
@@ -28,7 +31,7 @@ const dummyOrders = [
   },
 ];
 
-// おすすめ商品データ
+// おすすめアイテムデータ
 const recommendedItems = [
   { id: "1", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec1.jpg" },
   { id: "2", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec2.jpg" },
@@ -39,7 +42,7 @@ const recommendedItems = [
 
 const OrderHistoryPage: NextPage = () => {
   return (
-    <>
+    <ProtectedRoute>
       <Head>
         <title>お買い物履歴 | DumDumb</title>
         <meta name="description" content="DumDumbでのお買い物履歴" />
@@ -52,7 +55,7 @@ const OrderHistoryPage: NextPage = () => {
           {dummyOrders.map((order) => (
             <div key={order.id} className="border rounded-lg p-6">
               <div className="flex flex-col md:flex-row gap-6">
-                {/* 商品画像 */}
+                {/* アイテム画像 */}
                 <div className="w-28 h-28 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center">
                   {/* 画像がある場合は以下のコメントを解除して使用してください */}
                   {/* <Image 
@@ -68,7 +71,7 @@ const OrderHistoryPage: NextPage = () => {
                   </div>
                 </div>
 
-                {/* 商品情報 */}
+                {/* アイテム情報 */}
                 <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
                     <h3 className="font-medium">アイテム名</h3>
@@ -109,7 +112,7 @@ const OrderHistoryPage: NextPage = () => {
           ))}
         </div>
 
-        {/* おすすめ商品セクション */}
+        {/* おすすめアイテムセクション */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold mb-6">dumdumbからのおすすめ</h2>
 
@@ -128,8 +131,26 @@ const OrderHistoryPage: NextPage = () => {
           </div>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   );
+};
+
+// サーバーサイドでの認証チェック
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/auth/login?redirect=/mypage/orders',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
 };
 
 export default OrderHistoryPage;

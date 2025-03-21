@@ -24,7 +24,7 @@ const frequentlyViewedItems = [
   { id: "12", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq5.jpg" },
 ];
 
-// おすすめ商品データ
+// おすすめアイテムデータ
 const recommendedItems = [
   { id: "13", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec1.jpg" },
   { id: "14", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec2.jpg" },
@@ -92,7 +92,7 @@ const InterestedItemsPage: NextPage = () => {
           </div>
         </div>
 
-        {/* おすすめ商品セクション */}
+        {/* おすすめアイテムセクション */}
         <div className="mt-20">
           <h2 className="text-2xl font-bold mb-6">dumdumbからのおすすめ</h2>
 

@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { NextPage } from "next";
+import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../api/auth/[...nextauth]";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const MyPagePage: NextPage = () => {
-  // 実際はここでユーザーデータを取得します
-  const user = {
-    id: "1",
-    name: "ユーザー名",
-    email: "user@example.com",
-    lastLogin: "2023-03-15",
-  };
-
+  const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
 
   // スクロールイベントのリスナー
@@ -35,7 +32,7 @@ const MyPagePage: NextPage = () => {
   }, []);
 
   return (
-    <>
+    <ProtectedRoute>
       <Head>
         <title>マイページ | DumDumb</title>
         <meta name="description" content="DumDumbのマイページ" />
@@ -45,6 +42,12 @@ const MyPagePage: NextPage = () => {
         {/* メインコンテンツ */}
         <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-72px)]">
           <h1 className="text-3xl font-bold mb-8 text-start">マイページ</h1>
+          
+          {session?.user?.email && (
+            <p className="mb-4 text-gray-600">
+              ようこそ、{session.user.name || session.user.email}さん
+            </p>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {/* お買い物履歴 */}
@@ -143,8 +146,26 @@ const MyPagePage: NextPage = () => {
           </div>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   );
+};
+
+// サーバーサイドでの認証チェック
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/auth/login?redirect=/mypage',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
 };
 
 export default MyPagePage;
