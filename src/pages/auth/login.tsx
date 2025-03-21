@@ -3,7 +3,8 @@ import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/auth-context";
+import { signIn, useSession } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 const LoginPage: NextPage = () => {
   const [email, setEmail] = useState("");
@@ -12,22 +13,17 @@ const LoginPage: NextPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { login, user, error } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const { redirect } = router.query;
 
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
-    if (user) {
-      router.push("/");
+    if (status === 'authenticated') {
+      const redirectPath = typeof redirect === 'string' ? redirect : '/';
+      router.push(redirectPath);
     }
-  }, [user, router]);
-
-  // 認証エラーメッセージの表示
-  useEffect(() => {
-    if (error) {
-      setErrorMessage(error);
-    }
-  }, [error]);
+  }, [status, router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +39,26 @@ const LoginPage: NextPage = () => {
 
     try {
       setIsSubmitting(true);
-      const success = await login(email, password, rememberMe);
-      
-      if (success) {
-        // ログイン成功したらホームページにリダイレクト
-        router.push("/");
+
+      // NextAuthでログイン
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      });
+
+      if (result?.error) {
+        setErrorMessage(result.error || "ログインに失敗しました");
+        return;
+      }
+
+      if (result?.ok) {
+        // ログイン成功
+        toast.success("ログインしました");
+        
+        // リダイレクト先の処理
+        const redirectPath = typeof redirect === 'string' ? redirect : '/';
+        router.push(redirectPath);
       }
     } catch (err) {
       console.error("Login error:", err);

@@ -1,161 +1,71 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/router';
-import { UserWithoutPassword } from '@/lib/auth';
+// このファイルは使用されなくなりました
+// NextAuthの移行完了後に削除してください
+
+// 移行ノート: このファイルのすべての機能は、NextAuthの標準機能に置き換えられました
+// useSessionの代わりにuseAuthを使っていた場所は、useSessionに変更し、以下のように移行してください
+// - user → session?.user
+// - loading → status === 'loading'
+// - error → なし (NextAuthの内部処理)
+// - login → signIn
+// - register → APIを直接呼び出し
+// - logout → signOut
+
+import React, { createContext, ReactNode } from 'react';
+import { signIn, signOut, useSession } from 'next-auth/react';
+import { toast } from 'react-hot-toast';
+
+// この型定義は参照用に残しています
+type UserWithoutPassword = {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  role: string;
+};
 
 type AuthContextType = {
-  user: UserWithoutPassword | null;
+  user: null;
   loading: boolean;
-  error: string | null;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
-  register: (email: string, password: string) => Promise<boolean>;
+  error: null;
+  login: () => Promise<boolean>;
+  register: () => Promise<boolean>;
   logout: () => Promise<boolean>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: false,
+  error: null,
+  login: async () => false,
+  register: async () => false,
+  logout: async () => false,
+});
 
-type AuthProviderProps = {
-  children: ReactNode;
-};
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<UserWithoutPassword | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  // ユーザー情報の初期読み込み
-  useEffect(() => {
-    const loadUserFromCookie = async () => {
-      try {
-        const response = await fetch('/api/auth/me');
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
-        }
-      } catch (err) {
-        console.error('Failed to load user:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUserFromCookie();
-  }, []);
-
-  // ログイン処理
-  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, rememberMe }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || 'ログインに失敗しました');
-        setLoading(false);
-        return false;
-      }
-
-      setUser(data.user);
-      setLoading(false);
-      return true;
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('ログイン処理中にエラーが発生しました');
-      setLoading(false);
-      return false;
-    }
-  };
-
-  // 新規登録処理
-  const register = async (email: string, password: string): Promise<boolean> => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || '新規登録に失敗しました');
-        setLoading(false);
-        return false;
-      }
-
-      setUser(data.user);
-      setLoading(false);
-      return true;
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError('登録処理中にエラーが発生しました');
-      setLoading(false);
-      return false;
-    }
-  };
-
-  // ログアウト処理
-  const logout = async (): Promise<boolean> => {
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || 'ログアウトに失敗しました');
-        setLoading(false);
-        return false;
-      }
-
-      setUser(null);
-      setLoading(false);
-      router.push('/auth/login');
-      return true;
-    } catch (err) {
-      console.error('Logout error:', err);
-      setError('ログアウト処理中にエラーが発生しました');
-      setLoading(false);
-      return false;
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  return <>{children}</>;
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  console.warn('useAuth() は非推奨です。代わりに next-auth/react の useSession() を使用してください。');
+  
+  const { data: session, status } = useSession();
+  
+  // 最小限の互換性を提供
+  return {
+    user: session?.user || null,
+    loading: status === 'loading',
+    error: null,
+    login: async () => { 
+      toast.error('このメソッドは非推奨です。signIn()を使用してください'); 
+      return false; 
+    },
+    register: async () => { 
+      toast.error('このメソッドは非推奨です。APIを直接呼び出してください');
+      return false; 
+    },
+    logout: async () => { 
+      await signOut();
+      return true; 
+    },
+  };
 };

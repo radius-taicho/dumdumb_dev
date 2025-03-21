@@ -11,16 +11,59 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
-  cart      Cart?
+  id                String     @id @default(uuid())
+  name              String?
+  email             String?    @unique
+  emailVerified     DateTime?
+  image             String?
+  hashedPassword    String?    // 代替のパスワードフィールド
+  role              Role       @default(USER)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  orders            Order[]
+  cart              Cart?
   passwordResetTokens PasswordResetToken[]
+  accounts          Account[]
+  sessions          Session[]
+  addresses         Address[]        // 追加
+  paymentMethods    PaymentMethod[]  // 追加
+  favorites         Favorite[]       // 追加
+}
+
+// NextAuth関連モデル
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model PasswordResetToken {
@@ -33,27 +76,104 @@ model PasswordResetToken {
   used      Boolean  @default(false)
 }
 
+// メディアモデル
+model Media {
+  id          String   @id @default(uuid())
+  filename    String?  // オリジナルのファイル名
+  fileType    String?  // MIME タイプ
+  url         String   // 保存先URL
+  alt         String?  // 代替テキスト
+  width       Int?     // 画像の幅
+  height      Int?     // 画像の高さ
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // リレーション
+  items               Item[]              // このメディアを使用しているアイテム
+  characterSeries     CharacterSeries[]   // このメディアを使用しているシリーズ
+  characters          Character[]         // このメディアを使用しているキャラクター
+  categories          Category[]          // このメディアを使用しているカテゴリー
+}
+
 model Item {
   id          String        @id @default(uuid())
   name        String
   description String        @db.Text
   price       Decimal       @db.Decimal(10, 2)
-  inventory   Int           @default(0)
+  inventory   Int           @default(0) // 総在庫数（互換性のため）
   images      String        @db.Text
+  mediaId     String?       // メディア参照ID（将来用）
+  media       Media?        @relation(fields: [mediaId], references: [id])
+  gender      Gender?       // 性別フィールド
+  hasSizes    Boolean       @default(false) // サイズ在庫を使用するかのフラグ
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   categoryId  String
   category    Category      @relation("CategoryToItem", fields: [categoryId], references: [id])
+  characterId String?       // キャラクターID
+  character   Character?    @relation(fields: [characterId], references: [id])
+  itemSizes   ItemSize[]    // サイズごとの在庫
   cartItems   CartItem[]
   orderItems  OrderItem[]
+  favorites   Favorite[]    // 追加: お気に入り関連
+}
+
+// 新規：サイズごとの在庫モデル
+model ItemSize {
+  id        String   @id @default(uuid())
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  size      Size     // サイズ
+  inventory Int      @default(0) // サイズごとの在庫数
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, size]) // アイテムごとに各サイズは1つだけ
 }
 
 model Category {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  items     Item[]    @relation("CategoryToItem")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  name         String    @unique
+  items        Item[]    @relation("CategoryToItem")
+  displayOrder Int       @default(999) // 表示順（低い数字ほど先頭に表示）
+  isActive     Boolean   @default(true) // 表示/非表示の状態
+  image        String?   // 既存の画像URL
+  mediaId      String?   // メディア参照ID
+  media        Media?    @relation(fields: [mediaId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// キャラクターモデル
+model Character {
+  id                String           @id @default(uuid())
+  name              String
+  description       String?          @db.Text
+  image             String?          // 既存の画像URL（後方互換性用）
+  mediaId           String?          // メディア参照ID（将来用）
+  media             Media?           @relation(fields: [mediaId], references: [id])
+  characterSeriesId String?          // シリーズに属さないキャラクターの場合はnull
+  characterSeries   CharacterSeries? @relation(fields: [characterSeriesId], references: [id])
+  isActive          Boolean          @default(true) // 表示/非表示の状態
+  displayOrder      Int              @default(999)  // 表示順
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  items             Item[]           // キャラクターに関連するアイテム
+}
+
+// キャラクターシリーズモデル
+model CharacterSeries {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?     @db.Text
+  image       String?     // 既存の画像URL（後方互換性用）
+  mediaId     String?     // メディア参照ID（将来用）
+  media       Media?      @relation(fields: [mediaId], references: [id])
+  isActive    Boolean     @default(true) // 表示/非表示の状態
+  displayOrder Int        @default(999)  // 表示順
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  characters  Character[] // シリーズに属するキャラクター
 }
 
 model Cart {
@@ -72,10 +192,12 @@ model CartItem {
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   itemId    String
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  size      Size?    // 選択されたサイズ（nullの場合はサイズなし）
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, itemId])
+  @@index([cartId, itemId, size], name: "cart_item_with_size")
 }
 
 model Order {
@@ -94,6 +216,7 @@ model OrderItem {
   id        String   @id @default(uuid())
   quantity  Int
   price     Decimal  @db.Decimal(10, 2)
+  size      Size?    // 選択されたサイズ（nullの場合はサイズなし）
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   itemId    String
@@ -113,4 +236,69 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+// 性別の列挙型
+enum Gender {
+  MEN
+  WOMEN
+  KIDS
+  UNISEX
+}
+
+// サイズの列挙型
+enum Size {
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+// 住所モデル
+model Address {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String    // 宛名
+  postalCode  String    // 郵便番号
+  prefecture  String    // 都道府県
+  city        String    // 市区町村
+  line1       String    // 住所等
+  line2       String?   // 建物名・部屋番号等
+  phoneNumber String    // 電話番号
+  isDefault   Boolean   @default(false) // この住所をデフォルトとして使用するか
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// 支払い方法モデル
+model PaymentMethod {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String    // タイプ（クレジットカード、Amazon Pay等）
+  cardNumber     String?   // マスクされたカード番号
+  cardHolderName String?   // カード名義人
+  expiryMonth    String?   // 有効期限（月）
+  expiryYear     String?   // 有効期限（年）
+  amazonPayId    String?   // Amazon Pay ID
+  isDefault      Boolean   @default(false) // この支払い方法をデフォルトとして使用するか
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// お気に入りモデル
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, itemId])  // 同じアイテムを複数回お気に入りに追加できないようにする
+  @@index([userId])
+  @@index([itemId])
 }

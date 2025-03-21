@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getCookie } from 'cookies-next';
-import { verifyToken, getUserById } from '@/lib/auth';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from './[...nextauth]';
+import { prisma } from '@/lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // GETリクエスト以外は許可しない
@@ -9,22 +10,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // トークンの取得
-    const token = getCookie('auth_token', { req, res }) as string | undefined;
+    // NextAuthのセッションを取得
+    const session = await getServerSession(req, res, authOptions);
 
-    if (!token) {
+    if (!session) {
       return res.status(401).json({ message: '認証されていません' });
     }
 
-    // トークンの検証
-    const decoded = verifyToken(token);
-
-    if (!decoded || !decoded.id) {
-      return res.status(401).json({ message: '無効なトークンです' });
-    }
-
-    // ユーザー情報の取得
-    const user = await getUserById(decoded.id);
+    // ユーザー情報の取得（必要に応じて追加情報を取得）
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
 
     if (!user) {
       return res.status(404).json({ message: 'ユーザーが見つかりません' });

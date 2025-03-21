@@ -3,7 +3,8 @@ import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/auth-context";
+import { useSession } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 const ForgotPasswordPage: NextPage = () => {
   const [email, setEmail] = useState("");
@@ -11,15 +12,15 @@ const ForgotPasswordPage: NextPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
-    if (user) {
+    if (status === 'authenticated') {
       router.push("/");
     }
-  }, [user, router]);
+  }, [status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +55,7 @@ const ForgotPasswordPage: NextPage = () => {
       }
 
       // 成功メッセージを表示
+      toast.success("パスワードリセット手順をメールで送信しました");
       setSuccessMessage(
         data.message ||
           `パスワードリセット手順をメールで送信しました。メールをご確認ください。`

@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  // Next.js 14では appDir はもう experimental ではありません
 };
 
 module.exports = nextConfig;

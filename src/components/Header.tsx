@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { FiMenu, FiX, FiShoppingCart, FiHeart, FiUser } from "react-icons/fi";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/auth-context";
+import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { data: session, status } = useSession();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // ハートボタンクリック時の処理
@@ -40,8 +40,9 @@ export default function Header() {
 
   // ログアウト処理
   const handleLogout = async () => {
-    await logout();
+    await signOut({ redirect: false });
     setShowUserMenu(false);
+    router.push('/');
   };
 
   return (
@@ -89,7 +90,7 @@ export default function Header() {
             <FiShoppingCart className="w-6 h-6" />
           </Link>
 
-          {user ? (
+          {status === 'authenticated' ? (
             <div className="relative">
               <button
                 className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
@@ -102,7 +103,7 @@ export default function Header() {
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
                   <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                    {user.email}
+                    {session?.user?.email}
                   </div>
                   <Link
                     href="/mypage"
@@ -147,7 +148,7 @@ export default function Header() {
               className="text-gray-700 hover:text-gray-900"
               onClick={() => setIsMenuOpen(false)}
             >
-              商品一覧
+              アイテム一覧
             </Link>
             <Link
               href="/categories"
@@ -163,7 +164,7 @@ export default function Header() {
             >
               About
             </Link>
-            {!user ? (
+            {status !== 'authenticated' ? (
               <Link
                 href="/auth/login"
                 className="text-gray-700 hover:text-gray-900"

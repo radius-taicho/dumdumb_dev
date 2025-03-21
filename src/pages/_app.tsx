@@ -4,7 +4,8 @@ import { Inter } from 'next/font/google';
 import Layout from '@/components/Layout';
 import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
-import { AuthProvider } from '@/contexts/auth-context';
+import { SessionProvider } from 'next-auth/react';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,15 +18,16 @@ type AppPropsWithLayout = AppProps & {
   Component: NextPageWithLayout
 }
 
-export default function App({ Component, pageProps }: AppPropsWithLayout) {
+export default function App({ Component, pageProps: { session, ...pageProps } }: AppPropsWithLayout) {
   // ページコンポーネントにgetLayout関数があればそれを使用、なければデフォルトのLayoutを使用
   const getLayout = Component.getLayout ?? ((page) => <Layout>{page}</Layout>);
 
   return (
-    <AuthProvider>
+    <SessionProvider session={session}>
       <div className={inter.className}>
         {getLayout(<Component {...pageProps} />)}
+        <Toaster position="top-center" />
       </div>
-    </AuthProvider>
+    </SessionProvider>
   );
 }

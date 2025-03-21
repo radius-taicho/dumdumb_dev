@@ -3,8 +3,9 @@ import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useAuth } from "@/contexts/auth-context";
+import { useSession, signIn } from "next-auth/react";
 import { CheckCircle, XCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const RegisterPage: NextPage = () => {
   const [email, setEmail] = useState("");
@@ -17,7 +18,7 @@ const RegisterPage: NextPage = () => {
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, user, error } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   // パスワード要件チェック
@@ -25,24 +26,22 @@ const RegisterPage: NextPage = () => {
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
-  // パスワード強度計算（0-4のスケール）
+  
+  // パスワード強度計算（0-3のスケール）
   const passwordStrength = [
     hasMinLength,
     hasUpperCase,
     hasLowerCase,
     hasDigit,
-    hasSpecialChar,
   ].filter(Boolean).length;
 
   // パスワード強度のラベルとカラー
   const getStrengthLabel = () => {
     if (passwordStrength === 0)
       return { text: "入力してください", color: "bg-gray-200" };
-    if (passwordStrength <= 2) return { text: "弱い", color: "bg-red-500" };
-    if (passwordStrength <= 3) return { text: "普通", color: "bg-yellow-500" };
-    if (passwordStrength <= 4) return { text: "強い", color: "bg-green-500" };
+    if (passwordStrength <= 1) return { text: "弱い", color: "bg-red-500" };
+    if (passwordStrength <= 2) return { text: "普通", color: "bg-yellow-500" };
+    if (passwordStrength <= 3) return { text: "強い", color: "bg-green-500" };
     return { text: "非常に強い", color: "bg-green-600" };
   };
 
@@ -50,17 +49,10 @@ const RegisterPage: NextPage = () => {
 
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
-    if (user) {
+    if (status === 'authenticated') {
       router.push("/");
     }
-  }, [user, router]);
-
-  // 認証エラーメッセージの表示
-  useEffect(() => {
-    if (error) {
-      setErrorMessage(error);
-    }
-  }, [error]);
+  }, [status, router]);
 
   const validatePassword = () => {
     // パスワードの一致確認
@@ -70,7 +62,7 @@ const RegisterPage: NextPage = () => {
     }
 
     // パスワード強度の検証
-    if (passwordStrength < 3) {
+    if (!hasMinLength || passwordStrength < 2) {
       setPasswordError("パスワードの要件を満たしていません");
       return false;
     }
@@ -98,15 +90,44 @@ const RegisterPage: NextPage = () => {
 
     try {
       setIsSubmitting(true);
-      const success = await register(email, password);
+      
+      // 新規ユーザー登録API呼び出し
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (success) {
-        // 登録成功したらホームページにリダイレクト
-        router.push("/");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || '登録に失敗しました');
       }
+
+      // 登録成功メッセージ
+      toast.success('アカウントを作成しました');
+      
+      // 登録後、自動的にログイン
+      const signInResult = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      });
+
+      if (signInResult?.error) {
+        console.error('Auto sign-in failed:', signInResult.error);
+        // ログインに失敗してもエラーは表示せず、ログインページにリダイレクト
+        router.push('/auth/login');
+        return;
+      }
+
+      // ログインに成功したらトップページにリダイレクト
+      router.push('/');
     } catch (err) {
       console.error("Registration error:", err);
-      setErrorMessage("登録処理中にエラーが発生しました");
+      setErrorMessage(err instanceof Error ? err.message : "登録処理中にエラーが発生しました");
     } finally {
       setIsSubmitting(false);
     }
@@ -207,7 +228,7 @@ const RegisterPage: NextPage = () => {
                 </p>
 
                 {/* パスワード入力欄にフォーカスがあるとき、または入力済みでエラーがある場合のみ表示 */}
-                {(passwordFocused || (password && passwordStrength < 3)) && (
+                {(passwordFocused || (password && passwordStrength < 2)) && (
                   <>
                     <p className="text-xs text-gray-600 mb-2">
                       安全なパスワードの条件：
@@ -225,10 +246,6 @@ const RegisterPage: NextPage = () => {
                       <RequirementItem
                         met={hasDigit}
                         text="数字（0-9）を含む"
-                      />
-                      <RequirementItem
-                        met={hasSpecialChar}
-                        text="記号（!@#$%など）を含む"
                       />
                     </div>
                   </>

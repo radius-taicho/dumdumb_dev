@@ -93,10 +93,10 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
 
     // トランザクションを使用してパスワード更新とトークン使用済みマークを一緒に行う
     await prisma.$transaction([
-      // ユーザーのパスワードを更新
+      // ユーザーのパスワードを更新 - NextAuthではhashedPasswordフィールドを使用
       prisma.user.update({
         where: { id: resetToken.userId },
-        data: { password: hashedPassword },
+        data: { hashedPassword },
       }),
       // トークンを使用済みにマーク
       prisma.passwordResetToken.update({

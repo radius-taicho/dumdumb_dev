@@ -38,7 +38,7 @@ const OrderDetailPage: NextPage = () => {
     },
   };
 
-  // おすすめ商品データ
+  // おすすめアイテムデータ
   const recommendedItems = [
     { id: "1", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec1.jpg" },
     { id: "2", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec2.jpg" },
@@ -110,10 +110,10 @@ const OrderDetailPage: NextPage = () => {
           </div>
         </div>
 
-        {/* 商品詳細エリア */}
+        {/* アイテム詳細エリア */}
         <div className="border rounded-lg p-6 mb-12">
           <div className="flex flex-col md:flex-row gap-6">
-            {/* 商品画像 */}
+            {/* アイテム画像 */}
             <div className="w-28 h-28 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center">
               {/* 実際の画像を使用する場合はこちらを使用 */}
               {/* <Image 
@@ -134,7 +134,7 @@ const OrderDetailPage: NextPage = () => {
               </div>
             </div>
 
-            {/* 商品情報 */}
+            {/* アイテム情報 */}
             <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
                 <h3 className="font-medium underline">
@@ -171,7 +171,7 @@ const OrderDetailPage: NextPage = () => {
           </div>
         </div>
 
-        {/* おすすめ商品セクション */}
+        {/* おすすめアイテムセクション */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold mb-6">dumdumbからのオススメ</h2>
 
