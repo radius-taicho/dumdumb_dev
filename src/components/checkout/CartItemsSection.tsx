@@ -1,6 +1,12 @@
 import React from 'react';
 import { Size } from '@prisma/client';
 
+// キャラクターデータ型
+type CharacterType = {
+  id: string;
+  name: string;
+};
+
 type CartItemType = {
   id: string;
   itemId: string;
@@ -13,10 +19,7 @@ type CartItemType = {
     images: string;
     hasSizes: boolean;
     inventory: number;
-    character: {
-      id: string;
-      name: string;
-    } | null;
+    characters: CharacterType[]; // 複数キャラクター対応
   };
 };
 
@@ -30,6 +33,30 @@ const CartItemsSection: React.FC<CartItemsSectionProps> = ({ cartItems }) => {
     if (!imagesString) return '';
     const images = imagesString.split(',').map(img => img.trim());
     return images.length > 0 ? images[0] : '';
+  };
+
+  // キャラクターを表示するためのヘルパー関数
+  const renderCharacters = (characters: CharacterType[]): JSX.Element => {
+    if (!characters || characters.length === 0) {
+      return <></>;
+    }
+    
+    if (characters.length === 1) {
+      return <p className="text-sm text-gray-600">{characters[0].name}</p>;
+    } else {
+      return (
+        <div className="flex flex-wrap mt-1">
+          {characters.map((character, index) => (
+            <span 
+              key={character.id} 
+              className="inline-block bg-gray-100 text-xs text-gray-600 px-2 py-1 rounded-full mr-1 mb-1"
+            >
+              {character.name}
+            </span>
+          ))}
+        </div>
+      );
+    }
   };
 
   return (
@@ -69,11 +96,9 @@ const CartItemsSection: React.FC<CartItemsSectionProps> = ({ cartItems }) => {
               <p className="font-medium mt-2">
                 ¥{Number(item.item.price).toLocaleString()}
               </p>
-              {item.item.character && (
-                <p className="text-sm text-gray-600">
-                  {item.item.character.name}
-                </p>
-              )}
+              
+              {/* キャラクター表示 - 修正済み */}
+              {renderCharacters(item.item.characters)}
             </div>
 
             {/* 数量 */}

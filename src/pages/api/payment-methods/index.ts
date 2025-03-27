@@ -1,92 +1,61 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { prisma } from '@/lib/prisma';
 
+type Data = {
+  success: boolean;
+  paymentMethod?: any;
+  error?: string;
+};
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<Data>
 ) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+  }
+
+  // セッションを取得して認証チェック
   const session = await getServerSession(req, res, authOptions);
-
-  if (!session) {
-    return res.status(401).json({ error: 'ログインが必要です' });
+  if (!session || !session.user) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
 
-  const userId = session.user.id;
+  try {
+    const { type, cardNumber, cardHolderName, expiryMonth, expiryYear, isDefault, stripePaymentMethodId } = req.body;
 
-  // GET: ユーザーの支払い方法を取得
-  if (req.method === 'GET') {
-    try {
-      const paymentMethods = await prisma.paymentMethod.findMany({
+    // 既存のデフォルト支払い方法の処理
+    if (isDefault) {
+      await prisma.paymentMethod.updateMany({
         where: {
-          userId,
+          userId: session.user.id,
+          isDefault: true
         },
-        orderBy: {
-          isDefault: 'desc',
-        },
-      });
-
-      return res.status(200).json(paymentMethods);
-    } catch (error) {
-      console.error('Error fetching payment methods:', error);
-      return res.status(500).json({ error: '支払い方法の取得に失敗しました' });
-    }
-  }
-
-  // POST: 新しい支払い方法を追加
-  if (req.method === 'POST') {
-    const {
-      type,
-      cardNumber,
-      cardHolderName,
-      expiryMonth,
-      expiryYear,
-      isDefault,
-    } = req.body;
-
-    // 基本的なバリデーション
-    if (type === 'CREDIT_CARD') {
-      if (!cardNumber || !cardHolderName || !expiryMonth || !expiryYear) {
-        return res.status(400).json({ error: '必須項目が未入力です' });
-      }
-    }
-
-    try {
-      // もしこの支払い方法がデフォルトとして設定される場合、他のデフォルト支払い方法をリセット
-      if (isDefault) {
-        await prisma.paymentMethod.updateMany({
-          where: {
-            userId,
-            isDefault: true,
-          },
-          data: {
-            isDefault: false,
-          },
-        });
-      }
-
-      // 新しい支払い方法を作成
-      const newPaymentMethod = await prisma.paymentMethod.create({
         data: {
-          userId,
-          type,
-          // クレジットカード情報は実際には安全に保存する必要があります
-          // 実運用では決済代行サービスのトークンなどを使用することを推奨
-          cardNumber: cardNumber ? `xxxx-xxxx-xxxx-${cardNumber.slice(-4)}` : null,
-          cardHolderName: cardHolderName || null,
-          expiryMonth: expiryMonth || null,
-          expiryYear: expiryYear || null,
-          isDefault: isDefault || false,
-        },
+          isDefault: false
+        }
       });
-
-      return res.status(201).json(newPaymentMethod);
-    } catch (error) {
-      console.error('Error creating payment method:', error);
-      return res.status(500).json({ error: '支払い方法の追加に失敗しました' });
     }
-  }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+    // 支払い方法をデータベースに保存
+    const paymentMethod = await prisma.paymentMethod.create({
+      data: {
+        userId: session.user.id,
+        type,
+        cardNumber,
+        cardHolderName,
+        expiryMonth,
+        expiryYear,
+        stripePaymentMethodId, // Stripe Payment Method IDを保存
+        isDefault,
+      },
+    });
+
+    return res.status(201).json({ success: true, paymentMethod });
+  } catch (error) {
+    console.error('Error adding payment method:', error);
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
 }

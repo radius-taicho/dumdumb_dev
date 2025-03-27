@@ -36,7 +36,11 @@ export default async function handler(
     if (characterId) {
       items = await prisma.item.findMany({
         where: {
-          characterId: characterId as string,
+          characters: {
+            some: {
+              characterId: characterId as string,
+            },
+          },
         },
         take: limitNum,
         orderBy: {
@@ -49,10 +53,19 @@ export default async function handler(
               name: true,
             },
           },
-          character: {
-            select: {
-              id: true,
-              name: true,
+          characters: {
+            include: {
+              character: {
+                select: {
+                  id: true,
+                  name: true,
+                  characterSeries: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -75,19 +88,38 @@ export default async function handler(
               name: true,
             },
           },
-          character: {
-            select: {
-              id: true,
-              name: true,
+          characters: {
+            include: {
+              character: {
+                select: {
+                  id: true,
+                  name: true,
+                  characterSeries: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
     }
 
+    // キャラクター情報を整形
+    const formattedItems = items.map(item => ({
+      ...item,
+      characters: item.characters.map(ic => ({
+        id: ic.character.id,
+        name: ic.character.name,
+        characterSeriesName: ic.character.characterSeries?.name || null,
+      })),
+    }));
+
     // BigInt型をJSON化するために文字列に変換
     const serializedItems = JSON.parse(
-      JSON.stringify(items, (key, value) =>
+      JSON.stringify(formattedItems, (key, value) =>
         typeof value === "bigint" ? value.toString() : value
       )
     );

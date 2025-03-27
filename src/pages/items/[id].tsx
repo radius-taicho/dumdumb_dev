@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -9,13 +9,24 @@ import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 
 // インポートを追加
-import ImageGallery from "@/components/items/ImageGallery";
+import ImageGallerySticky from "@/components/items/ImageGallerySticky";
 import ItemInfo from "@/components/items/ItemInfo";
 import RestockNotification from "@/components/items/RestockNotification";
 import CharacterSection from "@/components/items/CharacterSection";
 import RelatedItems from "@/components/items/RelatedItems";
 
 // 型定義
+type CharacterData = {
+  id: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  characterSeries: {
+    id: string;
+    name: string;
+  } | null;
+};
+
 type ItemData = {
   id: string;
   name: string;
@@ -26,17 +37,7 @@ type ItemData = {
   hasSizes: boolean;
   gender: string | null;
   categoryId: string;
-  characterId: string | null;
-  character: {
-    id: string;
-    name: string;
-    description: string | null;
-    image: string | null;
-    characterSeries: {
-      id: string;
-      name: string;
-    } | null;
-  } | null;
+  characters: CharacterData[]; // 変更: characterId, character -> characters（複数）
   itemSizes: {
     id: string;
     size: Size;
@@ -54,6 +55,7 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
   const router = useRouter();
   const { data: session } = useSession();
   const [isProcessing, setIsProcessing] = useState(false);
+  const productSectionRef = useRef<HTMLElement>(null);
 
   if (error) {
     return (
@@ -85,16 +87,18 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
   const handleAddToCart = async (size: Size | null, quantity: number) => {
     // すでに処理中なら何もしない
     if (isProcessing) return;
-    
+
     try {
       setIsProcessing(true);
-      
+
       // セッション情報のデバッグ出力
       console.log("セッション情報:", session);
-      
+
       // セッションがない場合はエラー
       if (!session?.user?.id) {
-        throw new Error("ログインセッションが存在しません。再ログインしてください。");
+        throw new Error(
+          "ログインセッションが存在しません。再ログインしてください。"
+        );
       }
 
       // 在庫確認
@@ -131,48 +135,54 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
       console.log("APIレスポンス:", {
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
+        headers: Object.fromEntries(response.headers.entries()),
       });
 
       if (!response.ok) {
         const data = await response.json();
         console.error("APIエラーレスポンス:", data);
-        throw new Error(data.message || `APIエラー: ${response.status} ${response.statusText}`);
+        throw new Error(
+          data.message || `APIエラー: ${response.status} ${response.statusText}`
+        );
       }
 
       const responseData = await response.json();
       console.log("API成功レスポンス:", responseData);
-      
+
       // 追加したアイテムの情報をログ出力
       console.log("カート追加結果:", {
         itemId: item.id,
         itemName: item.name,
         size,
         quantity,
-        cartId: responseData.cart?.id
+        cartId: responseData.cart?.id,
       });
     } catch (error) {
       console.error("カート追加エラーの詳細:", error);
       let errorMessage;
-      
+
       if (error instanceof Error) {
         errorMessage = `エラー: ${error.message}`;
         // スタックトレースもログに記録（開発時のみ）
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('エラースタック:', error.stack);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("エラースタック:", error.stack);
         }
       } else if (error instanceof Response) {
         errorMessage = `ネットワークエラー: ${error.status} ${error.statusText}`;
       } else {
-        errorMessage = "予期せぬエラーが発生しました。ネットワーク接続を確認してください。";
+        errorMessage =
+          "予期せぬエラーが発生しました。ネットワーク接続を確認してください。";
       }
-      
+
       toast.error(errorMessage);
       throw error;
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // 最初のキャラクターか、すべてのキャラクターIDを連結したものを表示
+  const characterIdForRelated = item.characters.length > 0 ? item.characters[0].id : null;
 
   return (
     <>
@@ -181,15 +191,25 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
         <meta name="description" content={item.description.substring(0, 160)} />
       </Head>
 
-      <section className="flex relative gap-10 items-center px-8 pt-16 max-md:px-5">
-        <ImageGallery images={item.images} />
+      <section
+        ref={productSectionRef}
+        className="flex relative gap-10 items-start px-8 pt-12  max-md:px-5 overflow-hidden"
+      >
+        <ImageGallerySticky
+          images={item.images}
+          containerRef={productSectionRef}
+        />
         <ItemInfo item={item} onAddToCart={handleAddToCart} />
         <RestockNotification />
       </section>
 
-      <CharacterSection character={item.character} />
-      {/* 現在のアイテムIDを渡す */}
-      <RelatedItems characterId={item.characterId} currentItemId={item.id} />
+      {/* 複数キャラクターを全て表示するように変更 */}
+      {item.characters.length > 0 && (
+        <CharacterSection characters={item.characters} />
+      )}
+      
+      {/* 関連アイテム（最初のキャラクターに基づく） */}
+      <RelatedItems characterId={characterIdForRelated} currentItemId={item.id} />
     </>
   );
 };
@@ -209,18 +229,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     const item = await prisma.item.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        character: {
-          include: {
-            characterSeries: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+    where: { id },
+    include: {
+    category: true,
+    characters: { // 変更: character -> characters
+    include: {
+    character: { // キャラクター情報を取得
+    include: {
+    characterSeries: {
+    select: {
+    id: true,
+    name: true,
+    },
+    },
+    },
+    },
+    },
+      orderBy: {
+        displayOrder: 'asc', // 表示順でソート（小さい数字が先）
+        },
         },
         itemSizes: true,
       },
@@ -235,16 +262,37 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       };
     }
 
+    // キャラクター情報を整形 (ItemCharacter -> Character へ変換)
+    const characters = item.characters.map(ic => ({
+      id: ic.character.id,
+      name: ic.character.name,
+      description: ic.character.description,
+      image: ic.character.image,
+      characterSeries: ic.character.characterSeries,
+    }));
+
+    // 整形したデータを含む新しいアイテムオブジェクト
+    const formattedItem = {
+      ...item,
+      characters,
+    };
+
     // BigInt型をJSON化するために文字列に変換
     const serializedItem = JSON.parse(
-      JSON.stringify(item, (key, value) =>
+      JSON.stringify(formattedItem, (key, value) =>
         typeof value === "bigint" ? value.toString() : value
       )
     );
 
+    // character関連プロパティを削除
+    delete serializedItem.characters;
+
     return {
       props: {
-        item: serializedItem,
+        item: {
+          ...serializedItem,
+          characters, // 整形したキャラクターデータを設定
+        },
       },
     };
   } catch (error) {

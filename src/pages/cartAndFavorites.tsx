@@ -11,6 +11,12 @@ import { toast } from "react-hot-toast";
 import { prisma } from "@/lib/prisma";
 import { Size } from "@prisma/client";
 
+// キャラクターデータ型
+type CharacterType = {
+  id: string;
+  name: string;
+};
+
 // カートアイテムデータ型
 type CartItemType = {
   id: string;
@@ -23,10 +29,7 @@ type CartItemType = {
     price: number;
     images: string;
     hasSizes: boolean;
-    character: {
-      id: string;
-      name: string;
-    } | null;
+    characters: CharacterType[]; // 複数キャラクター対応
   };
 };
 
@@ -39,10 +42,7 @@ type FavoriteItemType = {
     name: string;
     price: number;
     images: string;
-    character: {
-      id: string;
-      name: string;
-    } | null;
+    characters: CharacterType[]; // 複数キャラクター対応
   };
 };
 
@@ -303,6 +303,31 @@ const CartAndFavoritesPage: NextPage<CartAndFavoritesPageProps> = ({
     return size;
   };
 
+  // キャラクターを表示するためのヘルパー関数
+  const renderCharacters = (characters: CharacterType[]): JSX.Element => {
+    if (!characters || characters.length === 0) {
+      return <></>;
+    }
+    
+    // 最初のキャラクターのみ表示（または複数のキャラクターをカンマ区切りで表示）
+    if (characters.length === 1) {
+      return <p className="text-sm text-gray-600 mb-1">{characters[0].name}</p>;
+    } else {
+      return (
+        <div className="mb-2">
+          {characters.map((character, index) => (
+            <span 
+              key={character.id} 
+              className="inline-block bg-gray-100 text-xs text-gray-600 px-2 py-1 rounded-full mr-1 mb-1"
+            >
+              {character.name}
+            </span>
+          ))}
+        </div>
+      );
+    }
+  };
+
   if (error) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
@@ -393,11 +418,9 @@ const CartAndFavoritesPage: NextPage<CartAndFavoritesPageProps> = ({
                           ¥
                           {Math.floor(Number(item.item.price)).toLocaleString()}
                         </p>
-                        {item.item.character && (
-                          <p className="text-sm text-gray-600 mb-4">
-                            {item.item.character.name}
-                          </p>
-                        )}
+                        
+                        {/* キャラクター表示 - 修正済み */}
+                        {renderCharacters(item.item.characters)}
 
                         {/* 数量調整 - アイテム情報の下に配置 */}
                         <div className="flex items-center border rounded-full overflow-hidden w-fit">
@@ -526,11 +549,9 @@ const CartAndFavoritesPage: NextPage<CartAndFavoritesPageProps> = ({
                     <p className="text-gray-800 mb-1">
                       ¥{Math.floor(Number(item.item.price)).toLocaleString()}
                     </p>
-                    {item.item.character && (
-                      <p className="text-sm text-gray-600">
-                        {item.item.character.name}
-                      </p>
-                    )}
+                    
+                    {/* キャラクター表示 - 修正済み */}
+                    {renderCharacters(item.item.characters)}
                   </div>
                 </div>
               ))}
@@ -603,7 +624,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           include: {
             item: {
               include: {
-                character: {
+                // 1対多関係の代わりに多対多関係を使用
+                characters: {
+                  through: {
+                    select: {} // 中間テーブルのフィールドは不要
+                  },
                   select: {
                     id: true,
                     name: true,
@@ -622,7 +647,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       include: {
         item: {
           include: {
-            character: {
+            // 1対多関係の代わりに多対多関係を使用
+            characters: {
+              through: {
+                select: {} // 中間テーブルのフィールドは不要
+              },
               select: {
                 id: true,
                 name: true,

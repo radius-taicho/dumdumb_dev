@@ -1,229 +1,225 @@
-import React, { useState } from "react";
-import { NextPage } from "next";
+import React from "react";
+import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
-import Link from "next/link";
-import { FiHeart, FiBell } from "react-icons/fi";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/router";
+import { PrismaClient } from "@prisma/client";
 
-// 仮のアイテムデータ
-const dummyItems = [
-  { id: "1", name: "アイテム名", price: 4500, image: "/images/dummy1.jpg" },
-  { id: "2", name: "アイテム名", price: 4500, image: "/images/dummy2.jpg" },
-  { id: "3", name: "アイテム名", price: 4500, image: "/images/dummy3.jpg" },
-  { id: "4", name: "アイテム名", price: 4500, image: "/images/dummy4.jpg" },
-  { id: "5", name: "アイテム名", price: 4500, image: "/images/dummy5.jpg" },
-  { id: "6", name: "アイテム名", price: 4500, image: "/images/dummy6.jpg" },
-];
+// コンポーネントのインポート
+import SeriesHeader from "@/components/character-series/SeriesHeader";
+import SeriesItemsGrid from "@/components/character-series/SeriesItemsGrid";
+import OtherSeriesSection from "@/components/character-series/OtherSeriesSection";
+import CharacterObject from "@/components/character-series/CharacterObject";
 
-// 仮のキャラクターシリーズデータ (8枚分用意)
-const dummySeries = [
-  { id: "1", name: "シリーズ1", image: "/images/series1.jpg" },
-  { id: "2", name: "シリーズ2", image: "/images/series2.jpg" },
-  { id: "3", name: "シリーズ3", image: "/images/series3.jpg" },
-  { id: "4", name: "シリーズ4", image: "/images/series4.jpg" },
-  { id: "5", name: "シリーズ5", image: "/images/series5.jpg" },
-  { id: "6", name: "シリーズ6", image: "/images/series6.jpg" },
-  { id: "7", name: "シリーズ7", image: "/images/series7.jpg" },
-  { id: "8", name: "シリーズ8", image: "/images/series8.jpg" },
-];
+// 型定義
+type CharacterSeries = {
+  id: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  media?: {
+    url: string;
+    fileType?: string;
+  } | null;
+  isMainVideo: boolean;
+  subMedia?: {
+    url: string;
+  } | null;
+  isActive: boolean;
+  displayOrder: number;
+};
 
-// 4枚ずつのグループに分ける
-const seriesGroups = [];
-for (let i = 0; i < dummySeries.length; i += 4) {
-  seriesGroups.push(dummySeries.slice(i, i + 4));
-}
+type Item = {
+  id: string;
+  name: string;
+  price: number;
+  images: string;
+  gender?: "MEN" | "WOMEN" | "KIDS" | null;
+};
 
-const CharacterSeriesPage: NextPage = () => {
-  // タブの状態管理
-  const [activeTab, setActiveTab] = useState("all");
+type CharacterSeriesPageProps = {
+  series: CharacterSeries | null;
+  items: Item[];
+  allSeries: CharacterSeries[];
+  error?: string;
+};
+
+const CharacterSeriesPage: NextPage<CharacterSeriesPageProps> = ({
+  series,
+  items,
+  allSeries,
+  error,
+}) => {
+  const router = useRouter();
+
+  // エラー処理
+  if (error || !series) {
+    return (
+      <div className="container mx-auto py-16 px-4 text-center">
+        <h1 className="text-2xl font-bold mb-4">
+          {error || "キャラクターシリーズが見つかりません"}
+        </h1>
+        <p className="text-gray-600 mb-8">
+          指定されたシリーズが存在しないか、削除された可能性があります。
+        </p>
+        <button
+          onClick={() => router.push("/")}
+          className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800"
+        >
+          ホームに戻る
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
       <Head>
-        <title>シリーズタイトル | DumDumb</title>
+        <title>{series.name} | dumdumb</title>
         <meta
           name="description"
-          content="DumDumbで扱っているキャラクターシリーズの詳細"
+          content={`dumdumbで扱っている${series.name}シリーズの商品一覧`}
         />
       </Head>
 
       {/* シリーズ情報ヘッダー */}
-      <div className="w-full flex flex-col">
-        <div className=" container mx-auto flex py-12 md:flex-row w-full">
-          {/* 左側：メイン画像 */}
-          <div className="w-full md:w-1/2 bg-gray-200 h-56 md:h-[400px]">
-            {/* シリーズメイン画像 */}
-          </div>
-
-          {/* 右側：サブ画像 */}
-          <div className="w-full md:w-1/2 border border-gray-300 h-56 md:h-[400px]">
-            {/* シリーズサブ画像・動画など */}
-          </div>
-        </div>
-        {/* シリーズ情報 */}
-        <div className="w-full bg-gray-100">
-          <div className="container mx-auto  py-4 px-4 flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">シリーズタイトル</h1>
-              <p className="text-sm">シリーズ説明</p>
-              <p className="text-sm">シリーズ説明</p>
-            </div>
-            <div className="flex items-center">
-              <button className="flex items-center">
-                <FiBell className="h-5 w-5" />
-              </button>
-              <span className="text-xs">
-                このシリーズの新着アイテムの通知を受け取る
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SeriesHeader series={series} />
 
       {/* シリーズアイテムセクション */}
-      <div className="container mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold text-center mb-8">
-          シリーズアイテム
-        </h2>
+      <SeriesItemsGrid seriesId={series.id} items={items} />
 
-        {/* タブナビゲーション */}
-        <div className="border-b mb-6">
-          <div className="flex justify-center">
-            <button
-              className={`px-6 py-2 ${
-                activeTab === "all" ? "font-bold border-b-2 border-black" : ""
-              }`}
-              onClick={() => setActiveTab("all")}
-            >
-              ALL
-            </button>
-            <button
-              className={`px-6 py-2 ${
-                activeTab === "men" ? "font-bold border-b-2 border-black" : ""
-              }`}
-              onClick={() => setActiveTab("men")}
-            >
-              MEN
-            </button>
-            <button
-              className={`px-6 py-2 ${
-                activeTab === "women" ? "font-bold border-b-2 border-black" : ""
-              }`}
-              onClick={() => setActiveTab("women")}
-            >
-              WOMEN
-            </button>
-            <button
-              className={`px-6 py-2 ${
-                activeTab === "kids" ? "font-bold border-b-2 border-black" : ""
-              }`}
-              onClick={() => setActiveTab("kids")}
-            >
-              KIDS
-            </button>
-          </div>
-        </div>
+      {/* キャラクターオブジェクト（上部） */}
+      <CharacterObject position="top" />
 
-        {/* ソートとフィルター */}
-        <div className="flex justify-end mb-4">
-          <div className="flex items-center">
-            <button className="ml-2 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-full flex items-center">
-              <span>新着順</span>
-              <span className="ml-1">🔍</span>
-            </button>
-          </div>
-        </div>
+      {/* 他のキャラクターシリーズ */}
+      <OtherSeriesSection currentSeriesId={series.id} allSeries={allSeries} />
 
-        {/* アイテムグリッド */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
-          {dummyItems.map((item) => (
-            <div key={item.id} className="relative">
-              <Link href={`/items/${item.id}`}>
-                <div className="h-60 bg-gray-500 mb-2 relative">
-                  {/* 実際はここに適切な画像が入ります */}
-                  <button className="absolute top-2 right-2 text-white">
-                    <FiHeart size={24} />
-                  </button>
-                </div>
-                <h3 className="text-base">{item.name}</h3>
-                <p className="text-base">{item.price.toLocaleString()}</p>
-              </Link>
-            </div>
-          ))}
-        </div>
-
-        {/* スクロールボタン */}
-        <div className="fixed bottom-20 right-8">
-          <button className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center text-white">
-            {/* スクロールアイコン */}
-          </button>
-        </div>
-      </div>
-
-      {/* キャラクターイメージ（上部） */}
-      <div className="flex justify-end w-full h-[160px] px-20 mb-4">
-        <div className="w-20 h-20 md:w-40 md:h-40 border-2 border-gray-300 rounded-full flex items-center justify-center"></div>
-      </div>
-
-      {/* キャラクターシリーズ */}
-      <div className="container mx-auto mb-12">
-        <div className="px-4">
-          <h2 className="text-xl font-bold mb-6">他のキャラクターシリーズ</h2>
-
-          <div className="relative px-4 md:px-8">
-            <Carousel className="w-full">
-              <CarouselContent>
-                {seriesGroups.map((group, groupIndex) => (
-                  <CarouselItem key={`group-${groupIndex}`} className="w-full">
-                    <div className="flex justify-between gap-4">
-                      {group.map((series) => (
-                        <Link
-                          key={series.id}
-                          href={`/character-series/${series.id}`}
-                          className="w-1/4"
-                        >
-                          <div className="aspect-[1/1.414] border-2 border-black flex items-center justify-center">
-                            {/* 画像が入る場所 */}
-                            <div className="text-center text-gray-500">
-                              {series.name}
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-
-              <CarouselPrevious className="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 border-none shadow-none bg-transparent text-black">
-                <div className="absolute -left-2">
-                  <ChevronLeft className="w-10 h-10" />
-                </div>
-              </CarouselPrevious>
-
-              <CarouselNext className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 border-none shadow-none bg-transparent text-black">
-                <div className="absolute -right-2">
-                  <ChevronRight className="w-10 h-10" />
-                </div>
-              </CarouselNext>
-            </Carousel>
-          </div>
-        </div>
-      </div>
-
-      {/* キャラクターイメージ（下部） */}
-      <div className="flex justify-end w-full h-[160px] px-20 mb-4">
-        <div className="w-20 h-20 md:w-40 md:h-40 border-2 border-gray-300 rounded-full flex items-center justify-center"></div>
-      </div>
+      {/* キャラクターオブジェクト（下部） */}
+      <CharacterObject position="bottom" />
     </>
   );
+};
+
+// サーバーサイドでデータを取得
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { id } = context.params || {};
+
+  if (!id || typeof id !== "string") {
+    return {
+      props: {
+        series: null,
+        items: [],
+        allSeries: [],
+        error: "Invalid ID",
+      },
+    };
+  }
+
+  const prisma = new PrismaClient();
+
+  try {
+    // シリーズ情報を取得（メインメディアとサブメディア両方を含む）
+    const series = await prisma.characterSeries.findUnique({
+      where: { id },
+      include: {
+        media: {
+          select: {
+            url: true,
+            fileType: true,
+          },
+        },
+        subMedia: {
+          select: {
+            url: true,
+          },
+        },
+      },
+    });
+
+    if (!series) {
+      return {
+        props: {
+          series: null,
+          items: [],
+          allSeries: [],
+          error: "Character series not found",
+        },
+      };
+    }
+
+    // このシリーズに関連するキャラクターを取得
+    const characters = await prisma.character.findMany({
+      where: {
+        characterSeriesId: id,
+        isActive: true,
+      },
+    });
+
+    const characterIds = characters.map(char => char.id);
+
+    // これらのキャラクターを含むアイテムを取得
+    const items = await prisma.item.findMany({
+      where: {
+        characters: {
+          some: {
+            characterId: {
+              in: characterIds,
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // 他のシリーズ情報を取得（表示状態のみ、メディア情報も含む）
+    const allSeries = await prisma.characterSeries.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        displayOrder: 'asc',
+      },
+      include: {
+        media: {
+          select: {
+            url: true,
+            fileType: true,
+          },
+        },
+        subMedia: {
+          select: {
+            url: true,
+          },
+        },
+      },
+    });
+
+    // JSON化可能なデータに変換
+    const serializedSeries = JSON.parse(JSON.stringify(series));
+    const serializedItems = JSON.parse(JSON.stringify(items));
+    const serializedAllSeries = JSON.parse(JSON.stringify(allSeries));
+
+    return {
+      props: {
+        series: serializedSeries,
+        items: serializedItems,
+        allSeries: serializedAllSeries,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching series data:", error);
+    return {
+      props: {
+        series: null,
+        items: [],
+        allSeries: [],
+        error: "Failed to fetch character series data",
+      },
+    };
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 export default CharacterSeriesPage;
