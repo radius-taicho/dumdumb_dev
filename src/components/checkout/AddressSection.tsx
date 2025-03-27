@@ -17,13 +17,17 @@ type AddressSectionProps = {
   selectedAddressId: string;
   onAddressSelect: (id: string) => void;
   onAddNew: () => void;
+  onDelete: (id: string) => void;
+  isProcessing: boolean;
 };
 
 const AddressSection: React.FC<AddressSectionProps> = ({
   addresses,
   selectedAddressId,
   onAddressSelect,
-  onAddNew
+  onAddNew,
+  onDelete,
+  isProcessing
 }) => {
   return (
     <div className="mb-8">
@@ -49,31 +53,47 @@ const AddressSection: React.FC<AddressSectionProps> = ({
               }`}
               onClick={() => onAddressSelect(address.id)}
             >
-              <div className="flex items-start">
-                <div className="mr-3 mt-1">
-                  <input 
-                    type="radio" 
-                    checked={selectedAddressId === address.id}
-                    onChange={() => onAddressSelect(address.id)}
-                    className="accent-orange-500"
-                  />
+              <div className="flex items-start justify-between w-full">
+                <div className="flex items-start">
+                  <div className="mr-3 mt-1">
+                    <input 
+                      type="radio" 
+                      checked={selectedAddressId === address.id}
+                      onChange={() => onAddressSelect(address.id)}
+                      className="accent-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <p className="font-medium">{address.name}</p>
+                    <p className="text-sm text-gray-700">
+                      〒{address.postalCode} {address.prefecture}{address.city}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      {address.line1} {address.line2}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      {address.phoneNumber}
+                    </p>
+                    {address.isDefault && (
+                      <span className="inline-block mt-1 text-xs bg-gray-200 rounded px-2 py-1">
+                        デフォルト
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <p className="font-medium">{address.name}</p>
-                  <p className="text-sm text-gray-700">
-                    〒{address.postalCode} {address.prefecture}{address.city}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    {address.line1} {address.line2}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    {address.phoneNumber}
-                  </p>
-                  {address.isDefault && (
-                    <span className="inline-block mt-1 text-xs bg-gray-200 rounded px-2 py-1">
-                      デフォルト
-                    </span>
-                  )}
+                  <button 
+                    className="text-red-500 hover:text-red-700 text-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('この住所を削除してもよろしいですか？')) {
+                        onDelete(address.id);
+                      }
+                    }}
+                    disabled={isProcessing}
+                  >
+                    削除
+                  </button>
                 </div>
               </div>
             </div>

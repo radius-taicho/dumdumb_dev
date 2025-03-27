@@ -25,11 +25,14 @@ const ThumbnailImage: React.FC<ThumbnailImageProps> = ({
       aria-label="選択画像を変更"
     >
       <div className="absolute inset-0 flex items-center justify-center bg-white">
-        <img 
-          src={image} 
-          alt="サムネイル" 
-          className="max-w-full max-h-full object-contain"
-        />
+        <div className="flex items-center justify-center w-full h-full p-3">
+          <img 
+            src={image} 
+            alt="サムネイル" 
+            className="max-w-full max-h-full object-contain w-auto h-auto mx-auto my-auto"
+            style={{ display: 'block' }}
+          />
+        </div>
       </div>
     </button>
   );

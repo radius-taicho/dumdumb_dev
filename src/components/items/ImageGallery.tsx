@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import ThumbnailImage from './ThumbnailImage';
+import React, { useState } from "react";
+import ThumbnailImage from "./ThumbnailImage";
 
-type ImageGalleryProps = { 
-  images: string 
+type ImageGalleryProps = {
+  images: string;
 };
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({ images }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const imageArray = images ? images.split(',').map(img => img.trim()) : [];
-  
+  const imageArray = images ? images.split(",").map((img) => img.trim()) : [];
+
   // 画像がない場合はプレースホルダーを使用
   if (imageArray.length === 0) {
     return (
@@ -36,9 +36,9 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images }) => {
       <div className="flex flex-col md:flex-row gap-5">
         <div className="w-full md:w-[120px] flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto md:max-h-[600px] py-2">
           {imageArray.map((image, index) => (
-            <ThumbnailImage 
-              key={index} 
-              image={image} 
+            <ThumbnailImage
+              key={index}
+              image={image}
               isActive={currentImageIndex === index}
               onClick={() => setCurrentImageIndex(index)}
               onMouseEnter={() => handleThumbnailHover(index)}
@@ -46,12 +46,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images }) => {
           ))}
         </div>
         <div className="w-full md:flex-1 flex items-center justify-center">
-          <div 
-            className="relative w-[420px] h-[420px] md:w-[520px] md:h-[520px] border border-gray-200 overflow-hidden"
-          >
-            <img 
-              src={imageArray[currentImageIndex]} 
-              alt="商品画像" 
+          <div className="relative w-[420px] h-[420px] md:w-[520px] md:h-[520px] border border-gray-200 overflow-hidden">
+            <img
+              src={imageArray[currentImageIndex]}
+              alt="アイテム画像"
               className="absolute w-full h-full object-contain"
             />
           </div>

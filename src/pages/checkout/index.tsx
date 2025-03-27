@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Elements, useStripe } from '@stripe/react-stripe-js';
+import { getStripe } from '@/lib/stripe/client';
 import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -21,6 +23,12 @@ import AddressModal from "@/components/checkout/AddressModal";
 import PaymentMethodModal from "@/components/checkout/PaymentMethodModal";
 
 // 型定義
+// キャラクターデータ型
+type CharacterType = {
+  id: string;
+  name: string;
+};
+
 type CartItemType = {
   id: string;
   itemId: string;
@@ -33,10 +41,7 @@ type CartItemType = {
     images: string;
     hasSizes: boolean;
     inventory: number;
-    character: {
-      id: string;
-      name: string;
-    } | null;
+    characters: CharacterType[]; // 複数キャラクター対応
   };
 };
 
@@ -96,11 +101,19 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>("希望日なし");
   const [selectedTime, setSelectedTime] = useState<string>("希望時間帯なし");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{
+    address?: string;
+    paymentMethod?: string;
+  }>({});
+
+  // Stripe関連の状態
+  const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState<string | null>(null);
+  const [stripePromise, setStripePromise] = useState(() => getStripe());
 
   // モーダル表示状態
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-
+  
   // 初期選択状態の設定
   useEffect(() => {
     if (addresses.length > 0) {
@@ -133,17 +146,39 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
     selectedAddressId !== "" &&
     selectedPaymentMethodId !== "";
 
+  // Stripe追加認証処理
+  const handleStripePaymentConfirmation = async (clientSecret: string) => {
+    const stripe = await stripePromise;
+    if (!stripe) {
+      toast.error("決済処理の初期化に失敗しました");
+      return false;
+    }
+
+    const { error, paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
+
+    if (error) {
+      toast.error(error.message || "決済確認に失敗しました");
+      return false;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      return true;
+    } else {
+      toast.error(`決済状態が不正です: ${paymentIntent?.status}`);
+      return false;
+    }
+  };
+
   // Amazon Pay処理
-  const handleAmazonPay = async () => {
+  const handleAmazonPay = async (amazonOrderReferenceId: string, billingAgreementId?: string) => {
     setIsProcessing(true);
     setError(undefined);
+    setValidationErrors({});
 
     try {
-      // 実際にはここでAmazon PayのJavaScriptライブラリを使用して
-      // 認証とユーザー情報の取得を行います
-      const amazonOrderReferenceId =
-        "test-amazon-order-reference-" + Date.now();
-
+      console.log('Amazon Pay処理開始:', { amazonOrderReferenceId, billingAgreementId });
+      
+      // APIリクエストを送信
       const response = await fetch("/api/payment-methods/amazon-pay", {
         method: "POST",
         headers: {
@@ -151,17 +186,19 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         },
         body: JSON.stringify({
           amazonOrderReferenceId,
+          billingAgreementId,
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const errorData = await response.json();
         throw new Error(
-          error.error || "Amazon Payの処理中にエラーが発生しました"
+          errorData.error || "Amazon Payの処理中にエラーが発生しました"
         );
       }
 
       const result = await response.json();
+      console.log('Amazon Pay情報取得成功:', result);
 
       // 住所と支払い方法を更新
       setAddresses([...addresses, result.address]);
@@ -171,9 +208,87 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
 
       toast.success("Amazon Payの情報を取得しました");
     } catch (error) {
-      console.error("Amazon Pay error:", error);
+      console.error("Amazon Pay処理エラー:", error);
       setError("Amazon Payの処理中にエラーが発生しました");
-      toast.error("Amazon Payの処理に失敗しました");
+      toast.error("Amazon Payの処理に失敗しました。別の支払い方法をお試しください。");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  // 住所を削除
+  const handleDeleteAddress = async (addressId: string) => {
+    setIsProcessing(true);
+    setValidationErrors({});
+
+    try {
+      const response = await fetch("/api/addresses/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ addressId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "お届け先の削除に失敗しました");
+      }
+
+      // 削除した住所をリストから削除
+      const updatedAddresses = addresses.filter((addr) => addr.id !== addressId);
+      setAddresses(updatedAddresses);
+
+      // 削除した住所が選択されていた場合は別のものを選択
+      if (selectedAddressId === addressId && updatedAddresses.length > 0) {
+        setSelectedAddressId(updatedAddresses[0].id);
+      } else if (updatedAddresses.length === 0) {
+        setSelectedAddressId("");
+      }
+
+      toast.success("お届け先を削除しました");
+    } catch (error) {
+      console.error("住所削除エラー:", error);
+      toast.error(error instanceof Error ? error.message : "お届け先の削除に失敗しました");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 支払い方法を削除
+  const handleDeletePaymentMethod = async (paymentMethodId: string) => {
+    setIsProcessing(true);
+    setValidationErrors({});
+
+    try {
+      const response = await fetch("/api/payment-methods/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paymentMethodId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "お支払い方法の削除に失敗しました");
+      }
+
+      // 削除した支払い方法をリストから削除
+      const updatedPaymentMethods = paymentMethods.filter((pm) => pm.id !== paymentMethodId);
+      setPaymentMethods(updatedPaymentMethods);
+
+      // 削除した支払い方法が選択されていた場合は別のものを選択
+      if (selectedPaymentMethodId === paymentMethodId && updatedPaymentMethods.length > 0) {
+        setSelectedPaymentMethodId(updatedPaymentMethods[0].id);
+      } else if (updatedPaymentMethods.length === 0) {
+        setSelectedPaymentMethodId("");
+      }
+
+      toast.success("お支払い方法を削除しました");
+    } catch (error) {
+      console.error("支払い方法削除エラー:", error);
+      toast.error(error instanceof Error ? error.message : "お支払い方法の削除に失敗しました");
     } finally {
       setIsProcessing(false);
     }
@@ -182,6 +297,7 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
   // 新しい住所を追加
   const handleAddAddress = async (addressData: any) => {
     setIsProcessing(true);
+    setValidationErrors({});
 
     try {
       const response = await fetch("/api/addresses", {
@@ -226,6 +342,7 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
   // 新しい支払い方法を追加
   const handleAddPaymentMethod = async (paymentData: any) => {
     setIsProcessing(true);
+    setValidationErrors({});
 
     try {
       const response = await fetch("/api/payment-methods", {
@@ -269,12 +386,34 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
 
   // 注文処理
   const handlePlaceOrder = async () => {
-    if (!isOrderButtonEnabled) {
+    // 入力検証
+    const errors: {
+      address?: string;
+      paymentMethod?: string;
+    } = {};
+
+    if (!selectedAddressId) {
+      errors.address = "お届け先を選択してください";
+    }
+
+    if (!selectedPaymentMethodId) {
+      errors.paymentMethod = "お支払い方法を選択してください";
+    }
+
+    // エラーがある場合は処理を中止
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      
+      // エラーメッセージをトースト表示
+      if (errors.address) toast.error(errors.address);
+      if (errors.paymentMethod) toast.error(errors.paymentMethod);
+      
       return;
     }
 
     setIsProcessing(true);
     setError(undefined);
+    setValidationErrors({});
 
     try {
       // 注文日に変換
@@ -298,6 +437,18 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         size: item.size,
       }));
 
+      console.log("注文処理開始: ", {
+        addressId: selectedAddressId,
+        paymentMethodId: selectedPaymentMethodId,
+        deliveryDate,
+        deliveryTimeSlot: selectedTime !== "希望時間帯なし" ? selectedTime : null,
+        items: orderItems.length,
+        subtotal,
+        shippingFee,
+        tax,
+        total
+      });
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -317,19 +468,38 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         }),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "注文処理中にエラーが発生しました");
+        throw new Error(responseData.error || "注文処理中にエラーが発生しました");
       }
 
-      const orderData = await response.json();
+      console.log("注文レスポンス:", responseData);
 
-      // 注文成功後、完了ページへリダイレクト
-      router.push(`/checkout/complete?orderId=${orderData.order.id}`);
+      // 3Dセキュア認証など追加認証が必要な場合の処理
+      if (responseData.requiresAction && responseData.clientSecret) {
+        toast.info("カード認証を完了してください");
+        
+        // 追加認証処理を実行
+        const confirmResult = await handleStripePaymentConfirmation(responseData.clientSecret);
+        
+        if (!confirmResult) {
+          throw new Error("カード認証に失敗しました");
+        }
+
+        // 認証成功後、完了ページに移動
+        router.push(`/checkout/complete?paymentIntentId=${responseData.paymentIntentId}`);
+        return;
+      }
+
+      // 通常の成功処理（追加認証なし）
+      router.push(`/checkout/complete?orderId=${responseData.order.id}`);
+      toast.success("ご注文ありがとうございます！");
+      
     } catch (error) {
       console.error("Order error:", error);
-      setError("注文処理中にエラーが発生しました");
-      toast.error("注文の確定に失敗しました");
+      setError(error instanceof Error ? error.message : "注文処理中にエラーが発生しました");
+      toast.error(error instanceof Error ? error.message : "注文の確定に失敗しました");
     } finally {
       setIsProcessing(false);
     }
@@ -391,6 +561,8 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
               selectedAddressId={selectedAddressId}
               onAddressSelect={setSelectedAddressId}
               onAddNew={() => setShowAddressModal(true)}
+              onDelete={handleDeleteAddress}
+              isProcessing={isProcessing}
             />
 
             {/* お支払い方法セクション */}
@@ -399,6 +571,8 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
               selectedPaymentMethodId={selectedPaymentMethodId}
               onPaymentMethodSelect={setSelectedPaymentMethodId}
               onAddNew={() => setShowPaymentMethodModal(true)}
+              onDelete={handleDeletePaymentMethod}
+              isProcessing={isProcessing}
             />
 
             {/* 希望配送日時セクション */}
@@ -438,11 +612,13 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
 
         {/* 支払い方法追加モーダル */}
         {showPaymentMethodModal && (
-          <PaymentMethodModal
-            onClose={() => setShowPaymentMethodModal(false)}
-            onSubmit={handleAddPaymentMethod}
-            isProcessing={isProcessing}
-          />
+          <Elements stripe={getStripe()}>
+              <PaymentMethodModal
+                onClose={() => setShowPaymentMethodModal(false)}
+                onSubmit={handleAddPaymentMethod}
+                  isProcessing={isProcessing}
+                />
+              </Elements>
         )}
       </div>
     </>
@@ -475,7 +651,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
             include: {
               item: {
                 include: {
-                  character: {
+                  // 1対多関係の代わりに多対多関係を使用
+                  characters: {
+                    through: {
+                      select: {} // 中間テーブルのフィールドは不要
+                    },
                     select: {
                       id: true,
                       name: true,

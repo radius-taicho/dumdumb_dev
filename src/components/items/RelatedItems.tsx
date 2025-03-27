@@ -4,7 +4,7 @@ import { FiPackage } from "react-icons/fi";
 
 type RelatedItemsProps = {
   characterId: string | null;
-  currentItemId: string; // 現在表示している商品のIDを追加
+  currentItemId: string; // 現在表示しているアイテムのIDを追加
 };
 
 const RelatedItems: React.FC<RelatedItemsProps> = ({
@@ -13,6 +13,7 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
 }) => {
   const [relatedItems, setRelatedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [characterName, setCharacterName] = useState<string | null>(null);
 
   useEffect(() => {
     if (characterId) {
@@ -23,11 +24,21 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
           );
           if (response.ok) {
             const data = await response.json();
-            // 現在表示している商品を除外
+            // 現在表示しているアイテムを除外
             const filteredItems = data.items.filter(
               (item: any) => item.id !== currentItemId
             );
             setRelatedItems(filteredItems);
+            
+            // キャラクター名を設定（最初の関連アイテムから取得）
+            if (filteredItems.length > 0 && filteredItems[0].characters) {
+              const character = filteredItems[0].characters.find(
+                (c: any) => c.id === characterId
+              );
+              if (character) {
+                setCharacterName(character.name);
+              }
+            }
           }
         } catch (error) {
           console.error("Failed to fetch related items:", error);
@@ -44,17 +55,19 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
 
   if (!characterId || loading) return null;
 
-  // 関連商品がない場合のメッセージ
+  // 関連アイテムがない場合のメッセージ
   if (relatedItems.length === 0) {
     return (
       <section className="container mx-auto px-4 py-8 mb-16">
         <h2 className="text-xl font-bold mb-6">
-          このキャラクターの他のアイテム
+          {characterName ? `${characterName}の他のアイテム` : "関連アイテム"}
         </h2>
         <div className="border border-gray-200 rounded-md p-6 flex flex-col items-center justify-center text-center bg-gray-50">
           <FiPackage className="w-12 h-12 text-gray-400 mb-4" />
           <p className="text-gray-600">
-            このキャラクターの他のアイテムはまだないよ...
+            {characterName 
+              ? `${characterName}の他のアイテムはまだありません`
+              : "関連アイテムはまだありません"}
           </p>
         </div>
       </section>
@@ -63,7 +76,9 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
 
   return (
     <section className="container mx-auto px-4 py-8 mb-16">
-      <h2 className="text-xl font-bold mb-6">このキャラクターの他のアイテム</h2>
+      <h2 className="text-xl font-bold mb-6">
+        {characterName ? `${characterName}の他のアイテム` : "関連アイテム"}
+      </h2>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {relatedItems.map((item: any) => (
           <Link href={`/items/${item.id}`} key={item.id}>
@@ -81,6 +96,13 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
               <p className="text-sm font-bold">
                 ¥{Math.floor(Number(item.price)).toLocaleString()}
               </p>
+              {/* キャラクター情報表示 */}
+              {item.characters && item.characters.length > 0 && (
+                <p className="text-xs text-gray-500 truncate">
+                  {item.characters[0].name}
+                  {item.characters.length > 1 ? ` 他${item.characters.length - 1}名` : ''}
+                </p>
+              )}
             </div>
           </Link>
         ))}

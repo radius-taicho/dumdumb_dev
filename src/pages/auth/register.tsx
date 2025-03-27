@@ -15,6 +15,7 @@ const RegisterPage: NextPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +28,10 @@ const RegisterPage: NextPage = () => {
   const hasLowerCase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
   
-  // パスワード強度計算（0-3のスケール）
+  // すべての要件を満たしているかチェック
+  const meetsAllRequirements = hasMinLength && hasUpperCase && hasLowerCase && hasDigit;
+  
+  // パスワード強度計算（0-4のスケール）
   const passwordStrength = [
     hasMinLength,
     hasUpperCase,
@@ -47,6 +51,28 @@ const RegisterPage: NextPage = () => {
 
   const strengthLabel = getStrengthLabel();
 
+  // パスワードフォーカス時と要件表示を制御
+  useEffect(() => {
+    if (passwordFocused) {
+      // フォーカス時は少し遅延させて表示（ブラウザのパスワード生成UIとの干渉を避ける）
+      const timer = setTimeout(() => {
+        setShowPasswordRequirements(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    } else {
+      // パスワードが入力済みで要件を満たしていない場合は表示を維持
+      if (password && !meetsAllRequirements) {
+        setShowPasswordRequirements(true);
+      } else {
+        // それ以外の場合は非表示
+        const timer = setTimeout(() => {
+          setShowPasswordRequirements(false);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [passwordFocused, password, meetsAllRequirements]);
+
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
     if (status === 'authenticated') {
@@ -61,8 +87,8 @@ const RegisterPage: NextPage = () => {
       return false;
     }
 
-    // パスワード強度の検証
-    if (!hasMinLength || passwordStrength < 2) {
+    // パスワード要件の検証 - すべての要件を満たしているか確認
+    if (!meetsAllRequirements) {
       setPasswordError("パスワードの要件を満たしていません");
       return false;
     }
@@ -227,9 +253,9 @@ const RegisterPage: NextPage = () => {
                   </span>
                 </p>
 
-                {/* パスワード入力欄にフォーカスがあるとき、または入力済みでエラーがある場合のみ表示 */}
-                {(passwordFocused || (password && passwordStrength < 2)) && (
-                  <>
+                {/* パスワード要件表示 - 表示タイミングを調整 */}
+                {showPasswordRequirements && (
+                  <div className="mt-4">
                     <p className="text-xs text-gray-600 mb-2">
                       安全なパスワードの条件：
                     </p>
@@ -248,7 +274,7 @@ const RegisterPage: NextPage = () => {
                         text="数字（0-9）を含む"
                       />
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

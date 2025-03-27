@@ -85,14 +85,32 @@ model Media {
   alt         String?  // 代替テキスト
   width       Int?     // 画像の幅
   height      Int?     // 画像の高さ
+  metadata    String?  @db.Text // Cloudinaryメタデータを含むJSON文字列
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   // リレーション
-  items               Item[]              // このメディアを使用しているアイテム
-  characterSeries     CharacterSeries[]   // このメディアを使用しているシリーズ
-  characters          Character[]         // このメディアを使用しているキャラクター
-  categories          Category[]          // このメディアを使用しているカテゴリー
+  items                   Item[]              // このメディアを使用しているアイテム
+  characterSeries         CharacterSeries[]  @relation("CharacterSeriesMedia")
+  characterSeriesSubMedia CharacterSeries[]  @relation("CharacterSeriesSubMedia")
+  characters              Character[]         // このメディアを使用しているキャラクター
+  categories              Category[]          // このメディアを使用しているカテゴリー
+  sliderImages            SliderImage[]       // メインビジュアルスライダーの画像
+}
+
+// メインビジュアルスライダーの画像モデル
+model SliderImage {
+  id           String    @id @default(uuid())
+  title        String    // 画像タイトル（管理用）
+  alt          String?   // alt属性（アクセシビリティ用）
+  url          String?   // 既存の画像URL（後方互換性用）
+  mediaId      String?   // メディア参照ID
+  media        Media?    @relation(fields: [mediaId], references: [id])
+  link         String?   // クリック時のリンク先URL
+  isActive     Boolean   @default(true) // 表示/非表示の状態
+  displayOrder Int       @default(999) // 表示順（小さい数字ほど先頭に表示）
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Item {
@@ -110,12 +128,31 @@ model Item {
   updatedAt   DateTime      @updatedAt
   categoryId  String
   category    Category      @relation("CategoryToItem", fields: [categoryId], references: [id])
-  characterId String?       // キャラクターID
-  character   Character?    @relation(fields: [characterId], references: [id])
+  // 以下の2行を削除
+  // characterId String?       // キャラクターID
+  // character   Character?    @relation(fields: [characterId], references: [id])
+  // 代わりに多対多リレーションを追加
+  characters  ItemCharacter[] // アイテムに関連付けられた複数のキャラクター
   itemSizes   ItemSize[]    // サイズごとの在庫
   cartItems   CartItem[]
   orderItems  OrderItem[]
   favorites   Favorite[]    // 追加: お気に入り関連
+}
+
+// アイテムとキャラクターの多対多関連付けのための中間テーブル
+model ItemCharacter {
+  id           String    @id @default(uuid())
+  itemId       String
+  item         Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  characterId  String
+  character    Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  displayOrder Int       @default(999) // アイテムごとのキャラクター表示順（小さいほど先頭に表示）
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([itemId, characterId]) // 同じアイテムに同じキャラクターを複数回関連付けないようにする
+  @@index([itemId])
+  @@index([characterId])
 }
 
 // 新規：サイズごとの在庫モデル
@@ -158,22 +195,33 @@ model Character {
   displayOrder      Int              @default(999)  // 表示順
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
-  items             Item[]           // キャラクターに関連するアイテム
+  // 以下の行を削除
+  // items             Item[]           // キャラクターに関連するアイテム
+  // 代わりに多対多リレーションを追加
+  items             ItemCharacter[]  // このキャラクターが関連付けられたアイテム
 }
 
 // キャラクターシリーズモデル
 model CharacterSeries {
-  id          String      @id @default(uuid())
-  name        String      @unique
-  description String?     @db.Text
-  image       String?     // 既存の画像URL（後方互換性用）
-  mediaId     String?     // メディア参照ID（将来用）
-  media       Media?      @relation(fields: [mediaId], references: [id])
-  isActive    Boolean     @default(true) // 表示/非表示の状態
-  displayOrder Int        @default(999)  // 表示順
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  characters  Character[] // シリーズに属するキャラクター
+  id           String      @id @default(uuid())
+  name         String      @unique
+  description  String?     @db.Text
+  image        String?     // 既存の画像URL（後方互換性用）
+  
+  // メインメディア（画像または動画）
+  mediaId      String?     // メインメディア参照ID
+  media        Media?      @relation("CharacterSeriesMedia", fields: [mediaId], references: [id])
+  isMainVideo  Boolean     @default(false)  // メインメディアが動画かどうか
+  
+  // サブメディア（画像のみ）
+  subMediaId   String?     // サブ画像参照ID
+  subMedia     Media?      @relation("CharacterSeriesSubMedia", fields: [subMediaId], references: [id])
+  
+  isActive     Boolean     @default(true) // 表示/非表示の状態
+  displayOrder Int         @default(999)  // 表示順
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  characters   Character[] // シリーズに属するキャラクター
 }
 
 model Cart {
@@ -201,15 +249,16 @@ model CartItem {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  totalAmount Decimal     @db.Decimal(10, 2)
-  status      OrderStatus @default(PENDING)
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       OrderItem[]
-  address     String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                String      @id @default(uuid())
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  status            OrderStatus @default(PENDING)
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items             OrderItem[]
+  address           String
+  paymentReferenceId String?    // Stripe PaymentIntent ID または他の支払い参照ID
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model OrderItem {
@@ -283,6 +332,7 @@ model PaymentMethod {
   expiryMonth    String?   // 有効期限（月）
   expiryYear     String?   // 有効期限（年）
   amazonPayId    String?   // Amazon Pay ID
+  stripePaymentMethodId String? // Stripe Payment Method ID
   isDefault      Boolean   @default(false) // この支払い方法をデフォルトとして使用するか
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
