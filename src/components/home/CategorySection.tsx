@@ -32,7 +32,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   };
 
   return (
-    <div className="container mx-auto px-8 mb-16">
+    <div className="container mx-auto px-4 mb-12">
       <h2 className="text-xl font-bold mb-6">アイテムカテゴリー</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
         <button

@@ -55,7 +55,7 @@ const SiteInfoSection: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto mb-20">
+    <div className="container mx-auto px-4 mb-12">
       <Carousel
         className="relative w-full"
         onSelect={handleInfoCarouselChange}
@@ -63,7 +63,7 @@ const SiteInfoSection: React.FC = () => {
         <CarouselContent>
           {siteInfoData.map((slide, slideIndex) => (
             <CarouselItem key={slideIndex} className="w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {slide.map((item, itemIndex) => (
                   <div key={itemIndex} className="mb-6">
                     <h2 className="text-xl font-bold mb-4">{item.title}</h2>

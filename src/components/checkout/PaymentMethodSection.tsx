@@ -76,8 +76,13 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
                       </>
                     ) : paymentMethod.type === "AmazonPay" ? (
                       <p className="font-medium">Amazon Pay</p>
+                    ) : paymentMethod.type === "OTHER" ? (
+                      <>
+                        <p className="font-medium">その他の支払い方法</p>
+                        <p className="text-sm text-gray-700">商品到着後にお支払い</p>
+                      </>
                     ) : (
-                      <p className="font-medium">その他の支払い方法</p>
+                      <p className="font-medium">不明な支払い方法</p>
                     )}
                     
                     {paymentMethod.isDefault && (

@@ -1,5 +1,5 @@
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 // 単一キャラクター用のprops型を複数キャラクター対応に変更
 type CharacterSectionProps = {
@@ -19,44 +19,46 @@ const CharacterSection: React.FC<CharacterSectionProps> = ({ characters }) => {
   if (!characters || characters.length === 0) return null;
 
   // 文ごとに分けて、それぞれを個別の要素として表示する関数
-  const formatDescriptionWithLineBreaks = (description: string | null): JSX.Element => {
+  const formatDescriptionWithLineBreaks = (
+    description: string | null
+  ): JSX.Element => {
     if (!description) return <span>このキャラクターの説明はありません。</span>;
-    
+
     // 正規表現で区切りを判定（「。」「？」「、」で終わるフレーズを検出）
     const phraseRegex = /[^。？、]+[。？、]/g;
     const phrases = description.match(phraseRegex) || [];
-    
+
     // 正規表現にマッチしない残りの部分
-    const remainingText = description.replace(phraseRegex, '').trim();
-    
+    const remainingText = description.replace(phraseRegex, "").trim();
+
     // 全てのフレーズを配列にまとめる
     const allPhrases = [...phrases];
     if (remainingText) {
       allPhrases.push(remainingText);
     }
-    
+
     // 各フレーズを独立した要素として表示
     const formattedText = allPhrases
-      .filter(phrase => phrase.trim() !== '')
+      .filter((phrase) => phrase.trim() !== "")
       .map((phrase, index) => {
         // 終わり方に応じてスタイルを調整（句点と疑問符は大きめの余白、読点は小さめの余白）
-        const endsWithComma = phrase.endsWith('、');
-        const marginClass = endsWithComma ? 'mb-2' : 'mb-3';
-        
+        const endsWithComma = phrase.endsWith("、");
+        const marginClass = endsWithComma ? "mb-2" : "mb-3";
+
         return (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className={`${marginClass}`}
-            style={{ 
-              display: 'block',
-              width: '100%'
+            style={{
+              display: "block",
+              width: "100%",
             }}
           >
             {phrase}
           </div>
         );
       });
-    
+
     return <>{formattedText}</>;
   };
 
@@ -65,16 +67,18 @@ const CharacterSection: React.FC<CharacterSectionProps> = ({ characters }) => {
       <h2 className="text-xl font-bold mb-6">
         このアイテムのキャラクターについて
       </h2>
-      
+
       {/* 各キャラクターごとにセクションを表示 */}
       {characters.map((character, index) => (
-        <div 
-          key={character.id} 
-          className={`${index > 0 ? 'mt-12 pt-12 border-t border-gray-200' : ''}`}
+        <div
+          key={character.id}
+          className={`${
+            index > 0 ? "mt-12 pt-12 border-t border-gray-200" : ""
+          }`}
         >
           <div className="flex flex-col md:flex-row gap-8 relative">
             {/* キャラクター画像と名前 */}
-            <div className="w-full md:w-2/5 flex-shrink-0 flex flex-col items-center">
+            <div className="w-full md:w-3/6 flex-shrink-0 flex flex-col items-center">
               {character.image ? (
                 <div className="w-full max-w-[360px]">
                   <img
@@ -88,18 +92,20 @@ const CharacterSection: React.FC<CharacterSectionProps> = ({ characters }) => {
                   <span className="text-gray-500">No Image</span>
                 </div>
               )}
-              <h3 className="text-2xl font-bold mt-5 text-center leading-relaxed">{character.name}</h3>
+              <h3 className="text-2xl font-bold mt-5 text-center leading-relaxed">
+                {character.name}
+              </h3>
             </div>
-            
+
             {/* キャラクター説明 - 各フレーズが一行で表示されるように修正 */}
-            <div className="w-full md:w-3/5 flex flex-col justify-between">
+            <div className="w-full md:w-3/6 flex flex-col justify-between">
               {/* 説明テキストの最大幅を設定し、行間を広く */}
               <div className="prose max-w-prose">
                 <div className="text-gray-700 text-lg leading-loose tracking-wide">
                   {formatDescriptionWithLineBreaks(character.description)}
                 </div>
               </div>
-              
+
               {/* 「詳しく見る」リンクを右寄せに */}
               {character.characterSeries && (
                 <div className="flex justify-end mt-8 md:mt-6">

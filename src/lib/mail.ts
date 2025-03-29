@@ -64,3 +64,82 @@ export const getPasswordResetEmailTemplate = (resetUrl: string) => {
     </div>
   `;
 };
+
+// 注文確認メールのテンプレート
+export const getOrderConfirmationEmailTemplate = (order: any, user: any) => {
+  // 商品リストの生成
+  const itemsHtml = order.items.map((item: any) => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.item?.name || '商品名なし'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.size || '-'}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${Number(item.price).toLocaleString()}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${(Number(item.price) * item.quantity).toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #f97316;">DumDumb - ご注文ありがとうございます</h2>
+      
+      <p>お客様のご注文を承りました。以下がご注文の詳細です。</p>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        <p><strong>注文番号:</strong> ${order.id}</p>
+        <p><strong>注文日時:</strong> ${new Date(order.createdAt).toLocaleString('ja-JP')}</p>
+      </div>
+      
+      <h3 style="border-bottom: 2px solid #f97316; padding-bottom: 10px;">注文内容</h3>
+      
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f5f5f5;">
+            <th style="padding: 10px; text-align: left;">商品名</th>
+            <th style="padding: 10px; text-align: center;">サイズ</th>
+            <th style="padding: 10px; text-align: right;">価格</th>
+            <th style="padding: 10px; text-align: center;">数量</th>
+            <th style="padding: 10px; text-align: right;">小計</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+      
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        <table style="width: 100%;">
+          <tr>
+            <td style="padding: 5px;">小計</td>
+            <td style="padding: 5px; text-align: right;">&#165;${Number(order.subtotal).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px;">送料</td>
+            <td style="padding: 5px; text-align: right;">&#165;${Number(order.shippingFee || 0).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px;"><strong>合計</strong></td>
+            <td style="padding: 5px; text-align: right;"><strong>&#165;${Number(order.totalAmount).toLocaleString()}</strong></td>
+          </tr>
+        </table>
+      </div>
+      
+      <h3 style="border-bottom: 2px solid #f97316; padding-bottom: 10px;">お届け先情報</h3>
+      <p>${order.address}</p>
+      
+      <div style="margin-top: 30px; background-color: #fff8f3; padding: 15px; border-radius: 4px;">
+        <p>ご注文に関するご不明な点がございましたら、お気軽にお問い合わせください。</p>
+      </div>
+      
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px;">
+        <p>© ${new Date().getFullYear()} DumDumb. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+};
+
+// 注文確認メール送信機能
+export const sendOrderConfirmationEmail = async (order: any, user: any) => {
+  const subject = `DumDumb - ご注文確認 [注文番号: ${order.id}]`;
+  const html = getOrderConfirmationEmailTemplate(order, user);
+  return await sendMail(user.email, subject, html);
+};

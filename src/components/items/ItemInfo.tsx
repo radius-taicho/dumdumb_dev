@@ -298,8 +298,8 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
         {/* キャラクターアイコン（複数の場合は横並びに） */}
         {item.characters && item.characters.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
-            {item.characters.map(character => (
-              <span 
+            {item.characters.map((character) => (
+              <span
                 key={character.id}
                 className="inline-block px-4 py-1 text-base bg-zinc-300 rounded-[40px] text-neutral-400"
               >

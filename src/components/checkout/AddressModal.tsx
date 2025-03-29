@@ -27,7 +27,7 @@ const AddressModal: React.FC<AddressModalProps> = ({
     const isCheckbox = type === 'checkbox';
     setAddressForm({
       ...addressForm,
-      [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value,
+      [name]: isCheckbox ? (e.target as HTMLInputElement).checked : (value === "" && name === "line2" ? null : value),
     });
   };
 

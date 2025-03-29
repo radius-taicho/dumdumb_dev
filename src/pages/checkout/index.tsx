@@ -271,6 +271,7 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('支払い方法削除失敗:', errorData);
         throw new Error(errorData.message || "お支払い方法の削除に失敗しました");
       }
 
@@ -300,6 +301,8 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
     setValidationErrors({});
 
     try {
+      console.log('Submitting address data:', addressData);
+      
       const response = await fetch("/api/addresses", {
         method: "POST",
         headers: {
@@ -308,24 +311,26 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         body: JSON.stringify(addressData),
       });
 
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "住所の追加に失敗しました");
+        console.error('Address creation failed:', responseData);
+        throw new Error(responseData.error || "住所の追加に失敗しました");
       }
 
-      const newAddress = await response.json();
+      console.log('New address created:', responseData);
 
       // 住所リストを更新
       const updatedAddresses = addressData.isDefault
         ? addresses
             .map((addr) => ({ ...addr, isDefault: false }))
-            .concat(newAddress)
-        : [...addresses, newAddress];
+            .concat(responseData)
+        : [...addresses, responseData];
 
       setAddresses(updatedAddresses);
 
       // 新しい住所を選択状態に
-      setSelectedAddressId(newAddress.id);
+      setSelectedAddressId(responseData.id);
 
       // モーダルを閉じる
       setShowAddressModal(false);
@@ -333,7 +338,7 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
       toast.success("お届け先を追加しました");
     } catch (error) {
       console.error("Address error:", error);
-      toast.error("お届け先の追加に失敗しました");
+      toast.error(error instanceof Error ? error.message : "お届け先の追加に失敗しました");
     } finally {
       setIsProcessing(false);
     }
@@ -487,13 +492,13 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
           throw new Error("カード認証に失敗しました");
         }
 
-        // 認証成功後、完了ページに移動
-        router.push(`/checkout/complete?paymentIntentId=${responseData.paymentIntentId}`);
-        return;
+        // 実行済みの認証成功あるいは追加認証なしの場合は直接サンクスページに遷移
+        router.push(`/checkout/thanks`);
+        toast.success("ご注文ありがとうございます！");
       }
 
       // 通常の成功処理（追加認証なし）
-      router.push(`/checkout/complete?orderId=${responseData.order.id}`);
+      router.push(`/checkout/thanks`);
       toast.success("ご注文ありがとうございます！");
       
     } catch (error) {
@@ -653,13 +658,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
                 include: {
                   // 1対多関係の代わりに多対多関係を使用
                   characters: {
-                    through: {
-                      select: {} // 中間テーブルのフィールドは不要
-                    },
-                    select: {
-                      id: true,
-                      name: true,
-                    },
+                    include: {
+                      character: {
+                        select: {
+                          id: true,
+                          name: true
+                        }
+                      }
+                    }
                   },
                 },
               },
@@ -723,9 +729,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       )
     );
 
+    // キャラクター情報を変換して正しい形式にする
+    const cartItemsWithFormattedCharacters = serializedCartItems.map(item => {
+      const formattedCharacters = item.item.characters.map(ic => ({
+        id: ic.character.id,
+        name: ic.character.name
+      }));
+      
+      return {
+        ...item,
+        item: {
+          ...item.item,
+          characters: formattedCharacters
+        }
+      };
+    });
+
     return {
       props: {
-        cartItems: serializedCartItems,
+        cartItems: cartItemsWithFormattedCharacters,
         addresses: serializedAddresses,
         paymentMethods: serializedPaymentMethods,
       },
