@@ -54,7 +54,7 @@ const ItemsSection: React.FC<ItemsSectionProps> = ({
 
   return (
     <div className="container mx-auto px-4 mb-12">
-      <h2 className="text-xl font-bold mb-6">
+      <h2 className="text-xl font-bold text-center mb-6">
         {selectedCategoryId
           ? categories.find((c) => c.id === selectedCategoryId)?.name
           : "すべてのアイテム"}
@@ -62,7 +62,7 @@ const ItemsSection: React.FC<ItemsSectionProps> = ({
 
       {/* タブナビゲーション */}
       <div className="border-b mb-6">
-        <div className="flex">
+        <div className="flex justify-center">
           <button
             className={`px-6 py-2 ${
               selectedGender === "ALL"

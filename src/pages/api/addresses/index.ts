@@ -53,6 +53,18 @@ export default async function handler(
     }
 
     try {
+      console.log('Creating address with data:', {
+        userId,
+        name,
+        postalCode,
+        prefecture,
+        city,
+        line1,
+        line2: line2 || null,
+        phoneNumber,
+        isDefault
+      });
+      
       // もしこの住所がデフォルトとして設定される場合、他のデフォルト住所をリセット
       if (isDefault) {
         await prisma.address.updateMany({
@@ -75,7 +87,7 @@ export default async function handler(
           prefecture,
           city,
           line1,
-          line2: line2 || '',
+          line2: line2 || null,
           phoneNumber,
           isDefault: isDefault || false,
         },
@@ -84,7 +96,18 @@ export default async function handler(
       return res.status(201).json(newAddress);
     } catch (error) {
       console.error('Error creating address:', error);
-      return res.status(500).json({ error: '住所の追加に失敗しました' });
+      
+      // エラーの詳細情報をログに出力
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        if ('code' in error) {
+          console.error('Error code:', (error as any).code);
+        }
+      }
+      
+      // クライアントに返すエラーメッセージ
+      const errorMessage = error instanceof Error ? `住所の追加に失敗しました: ${error.message}` : '住所の追加に失敗しました';
+      return res.status(500).json({ error: errorMessage });
     }
   }
 

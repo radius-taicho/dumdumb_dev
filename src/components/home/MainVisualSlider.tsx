@@ -70,33 +70,9 @@ export default function MainVisualSlider(): JSX.Element {
     fetchSliderImages();
   }, []);
 
-  // データがない場合のデフォルト画像（開発用）
-  const defaultSlides = [
-    {
-      id: "1",
-      title: "デフォルトスライド1",
-      alt: "デフォルトスライド1",
-      url: "/images/slide1.jpg",
-      link: null,
-    },
-    {
-      id: "2",
-      title: "デフォルトスライド2",
-      alt: "デフォルトスライド2",
-      url: "/images/slide2.jpg",
-      link: null,
-    },
-    {
-      id: "3",
-      title: "デフォルトスライド3",
-      alt: "デフォルトスライド3",
-      url: "/images/slide3.jpg",
-      link: null,
-    },
-  ];
-
-  // 表示するスライド（APIから取得したデータがなければデフォルト表示）
-  const displaySlides = slides.length > 0 ? slides : defaultSlides;
+  // データ取得前はスライドを表示しない
+  // 表示するスライドはAPIから取得したデータのみを使用
+  const displaySlides = slides;
 
   // タイマーの開始
   const startTimers = useCallback(() => {
@@ -176,7 +152,8 @@ export default function MainVisualSlider(): JSX.Element {
 
   // 表示状態に基づいてタイマーを制御
   useEffect(() => {
-    if (isVisible && displaySlides.length > 1) {
+    // ロード中またはスライドがない場合はタイマーを開始しない
+    if (isVisible && displaySlides.length > 1 && !loading) {
       startTimers();
     } else {
       if (autoPlayRef.current) {
@@ -230,21 +207,17 @@ export default function MainVisualSlider(): JSX.Element {
     >
       {/* メインスライダー */}
       <div className="w-full h-full relative">
-        {loading ? (
-          // ローディング中表示
+        {loading || displaySlides.length === 0 ? (
+          // ローディング中またはデータがない場合
           <div
             className="bg-white flex items-center justify-center"
             style={{ height: `${SLIDER_CONFIG.contentHeight}px` }}
           >
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400"></div>
-          </div>
-        ) : displaySlides.length === 0 ? (
-          // スライド画像がない場合
-          <div
-            className="bg-white flex items-center justify-center"
-            style={{ height: `${SLIDER_CONFIG.contentHeight}px` }}
-          >
-            <p>表示するスライド画像がありません</p>
+            {loading ? (
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400"></div>
+            ) : (
+              <p>表示するスライド画像がありません</p>
+            )}
           </div>
         ) : (
           // スライド表示
@@ -290,13 +263,14 @@ export default function MainVisualSlider(): JSX.Element {
           </div>
         )}
 
-        {/* ページネーションドット */}
-        <div
-          className="absolute bottom-0 w-full h-12 bg-white flex items-center justify-center"
-          style={{ zIndex: 20 }}
-        >
-          <div className="flex gap-[10px] items-center">
-            {displaySlides.map((dot, dotIndex) => (
+        {/* ページネーションドット - APIからデータがロードされた場合のみ表示 */}
+        {!loading && displaySlides.length > 0 && (
+          <div
+            className="absolute bottom-0 w-full h-12 bg-white flex items-center justify-center"
+            style={{ zIndex: 20 }}
+          >
+            <div className="flex gap-[10px] items-center">
+              {displaySlides.map((dot, dotIndex) => (
               <div key={dot.id} className="relative">
                 <button
                   onClick={() => goToSlide(dotIndex)}
@@ -343,8 +317,9 @@ export default function MainVisualSlider(): JSX.Element {
                   )}
               </div>
             ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 前へボタン */}
         <button

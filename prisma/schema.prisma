@@ -18,6 +18,7 @@ model User {
   image             String?
   hashedPassword    String?    // 代替のパスワードフィールド
   role              Role       @default(USER)
+  stripeCustomerId  String?    // Stripe顧客ID
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   orders            Order[]

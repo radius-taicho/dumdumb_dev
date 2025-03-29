@@ -112,8 +112,8 @@ const CharacterSeriesSection: React.FC<CharacterSeriesSectionProps> = ({
     displaySeries = [...displaySeries, ...dummySeries.slice(0, neededDummies)];
   }
   return (
-    <div className="container mx-auto mb-12">
-      <div className="px-4">
+    <div className="container mx-auto px-4 mb-12">
+      <div>
         <h2 className="text-xl font-bold mb-6">キャラクターシリーズ</h2>
 
         <div className="relative px-4 md:px-8">

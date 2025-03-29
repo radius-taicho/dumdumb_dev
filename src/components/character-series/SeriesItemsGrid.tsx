@@ -34,8 +34,17 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
 
     // 性別でフィルタリング
     if (selectedGender !== "ALL") {
-      result = result.filter((item) => item.gender === selectedGender);
+      result = result.filter((item) => {
+        // UNISEX商品はMENとWOMENの両方に表示
+        if ((item.gender === "UNISEX" || item.gender === null) && 
+            (selectedGender === "MEN" || selectedGender === "WOMEN")) {
+          return true;
+        }
+        // 通常のフィルタリング
+        return item.gender === selectedGender;
+      });
     }
+    // ALLの場合は全ての商品を表示
 
     // 並び替え
     switch (sortOrder) {
@@ -222,12 +231,12 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
           filteredItems.map((item) => (
             <div key={item.id} className="relative group">
               <Link href={`/items/${item.id}`}>
-                <div className="h-[320px] bg-gray-100 mb-2 relative overflow-hidden">
+                <div className="aspect-[4/5] bg-gray-100 mb-3 relative overflow-hidden">
                   {/* アイテム画像 */}
                   <img
                     src={getImageUrl(item.images)}
                     alt={item.name}
-                    className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" loading="lazy"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = "/images/placeholder.jpg";
@@ -246,8 +255,8 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
                     )}
                   </button>
                 </div>
-                <h3 className="text-base">{item.name}</h3>
-                <p className="text-base font-medium">
+                <h3 className="text-base font-medium line-clamp-1 mb-1">{item.name}</h3>
+                <p className="text-lg font-bold">
                   ¥{Number(item.price).toLocaleString()}
                 </p>
               </Link>

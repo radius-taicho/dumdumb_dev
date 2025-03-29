@@ -626,13 +626,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
               include: {
                 // 1対多関係の代わりに多対多関係を使用
                 characters: {
-                  through: {
-                    select: {} // 中間テーブルのフィールドは不要
-                  },
-                  select: {
-                    id: true,
-                    name: true,
-                  },
+                  include: {
+                    character: {
+                      select: {
+                        id: true,
+                        name: true
+                      }
+                    }
+                  }
                 },
               },
             },
@@ -649,13 +650,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           include: {
             // 1対多関係の代わりに多対多関係を使用
             characters: {
-              through: {
-                select: {} // 中間テーブルのフィールドは不要
-              },
-              select: {
-                id: true,
-                name: true,
-              },
+              include: {
+                character: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
             },
           },
         },
@@ -677,10 +679,41 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       )
     );
 
+    // キャラクター情報を変換して正しい形式にする
+    const cartItemsWithFormattedCharacters = serializedCartItems.map(item => {
+      const formattedCharacters = item.item.characters.map(ic => ({
+        id: ic.character.id,
+        name: ic.character.name
+      }));
+      
+      return {
+        ...item,
+        item: {
+          ...item.item,
+          characters: formattedCharacters
+        }
+      };
+    });
+
+    const favoriteItemsWithFormattedCharacters = serializedFavorites.map(favorite => {
+      const formattedCharacters = favorite.item.characters.map(ic => ({
+        id: ic.character.id,
+        name: ic.character.name
+      }));
+      
+      return {
+        ...favorite,
+        item: {
+          ...favorite.item,
+          characters: formattedCharacters
+        }
+      };
+    });
+
     return {
       props: {
-        cartItems: serializedCartItems,
-        favoriteItems: serializedFavorites,
+        cartItems: cartItemsWithFormattedCharacters,
+        favoriteItems: favoriteItemsWithFormattedCharacters,
       },
     };
   } catch (error) {

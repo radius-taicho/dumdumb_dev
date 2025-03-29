@@ -6,6 +6,7 @@ type Data = {
   success: boolean;
   message?: string;
   cart?: any;
+  errorDetail?: string;
 };
 
 export default async function handler(
@@ -94,40 +95,47 @@ export default async function handler(
     // カートの存在確認、なければ作成
     let cart = await prisma.cart.findUnique({
       where: { userId },
-      include: { items: { include: { item: true } } },
     });
 
     if (!cart) {
       cart = await prisma.cart.create({
         data: { userId },
-        include: { items: { include: { item: true } } },
       });
     }
 
-    // カート内に既に同じアイテム（同じサイズ）があるか確認
-    const existingItem = cart.items.find(
-      (cartItem) => cartItem.itemId === itemId && cartItem.size === size
-    );
-
-    if (existingItem) {
-      // 既存のアイテムを更新
-      await prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity },
-      });
-    } else {
-      // 新しいアイテムを追加
-      await prisma.cartItem.create({
-        data: {
+    // トランザクションを使用して安全にupsert操作を実行
+    await prisma.$transaction(async (tx) => {
+      // 同じアイテムとサイズの組み合わせがカートにあるか確認
+      const existingItem = await tx.cartItem.findFirst({
+        where: {
           cartId: cart.id,
-          itemId,
-          quantity,
+          itemId: itemId,
           size: size as Size | null,
         },
       });
-    }
 
-    // 更新されたカートを取得
+      if (existingItem) {
+        // 既存アイテムを更新
+        await tx.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: existingItem.quantity + quantity },
+        });
+        console.log(`既存アイテム更新: ID=${existingItem.id}, 数量=${existingItem.quantity + quantity}`);
+      } else {
+        // 新規アイテムを作成
+        const newItem = await tx.cartItem.create({
+          data: {
+            cartId: cart.id,
+            itemId: itemId,
+            quantity: quantity,
+            size: size as Size | null,
+          },
+        });
+        console.log(`新規アイテム作成: ID=${newItem.id}, 数量=${quantity}`);
+      }
+    });
+
+    // 更新後のカートを取得
     const updatedCart = await prisma.cart.findUnique({
       where: { userId },
       include: { items: { include: { item: true } } },
@@ -144,26 +152,26 @@ export default async function handler(
     
     let errorMessage = "サーバー内部エラーが発生しました";
     let statusCode = 500;
+    let errorDetail = '';
     
     // エラータイプに応じてより具体的なメッセージを提供
     if (error instanceof Error) {
+      errorDetail = error.stack || error.message;
+      
       // 特定のエラータイプをチェック
       if (error.name === 'PrismaClientKnownRequestError') {
-        // Prismaの既知のエラー
-        errorMessage = `データベースエラー: ${error.message}`;
+        errorMessage = 'データベース処理中にエラーが発生しました。しばらくしてから再度お試しください。';
       } else if (error.name === 'PrismaClientValidationError') {
-        // バリデーションエラー
-        errorMessage = `入力データが不正です: ${error.message}`;
+        errorMessage = '入力データの検証に失敗しました。';
       } else {
-        // その他の一般的なエラー
-        errorMessage = `エラー: ${error.message}`;
+        errorMessage = 'エラーが発生しました。再度お試しください。';
       }
     }
     
     return res.status(statusCode).json({
       success: false,
       message: errorMessage,
-      errorDetail: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      errorDetail: process.env.NODE_ENV === 'development' ? errorDetail : undefined,
     });
   }
 }

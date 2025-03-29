@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]';
+import { authOptions } from '../auth/[...nextauth]';
 import { prisma } from '@/lib/prisma';
 
 type Data = {
@@ -38,8 +38,13 @@ export default async function handler(
       },
     });
 
+    // 支払い方法が見つからない場合
     if (!paymentMethod) {
-      return res.status(404).json({ success: false, message: 'Payment method not found' });
+      console.log('支払い方法が見つかりません:', { paymentMethodId });
+      
+      // オプション：存在しない支払い方法を「成功した」とみなす
+      // これはユーザーが削除しようとしているものはもう無いため
+      return res.status(200).json({ success: true, message: 'Payment method already deleted or not found' });
     }
 
     if (paymentMethod.userId !== session.user.id) {
