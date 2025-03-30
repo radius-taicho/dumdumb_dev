@@ -7,7 +7,7 @@ import { useSession, signIn } from "next-auth/react";
 import { CheckCircle, XCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-const RegisterPage: NextPage = () => {
+const SignupPage: NextPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +23,7 @@ const RegisterPage: NextPage = () => {
   const router = useRouter();
 
   // パスワード要件チェック
-  const hasMinLength = password.length >= 8;
+  const hasMinLength = password.length >= 12;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasDigit = /\d/.test(password);
@@ -118,7 +118,7 @@ const RegisterPage: NextPage = () => {
       setIsSubmitting(true);
       
       // 新規ユーザー登録API呼び出し
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,6 +220,19 @@ const RegisterPage: NextPage = () => {
                 パスワード
               </label>
               <div className="relative">
+                {passwordFocused && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-blue-50 rounded-md border border-blue-200 shadow-sm">
+                    <p className="text-sm text-blue-700 flex items-center">
+                      <svg className="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <strong>ブラウザの自動パスワード生成機能をお使いください</strong>
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1 ml-5">
+                      高度に安全なパスワードが自動生成され、ブラウザに保存されます。
+                    </p>
+                  </div>
+                )}
                 <input
                   type="password"
                   id="password"
@@ -231,7 +244,7 @@ const RegisterPage: NextPage = () => {
                   onBlur={() => setPasswordFocused(false)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
                   required
-                  minLength={8}
+                  minLength={12}
                   disabled={isSubmitting}
                   autoComplete="new-password"
                 />
@@ -246,21 +259,15 @@ const RegisterPage: NextPage = () => {
                 )}
               </div>
 
-              <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200">
-                <p className="text-xs text-gray-700">
-                  <span className="text-gray-700">
-                    入力欄をクリックすると、ブラウザの自動パスワード生成機能が表示されます
-                  </span>
-                </p>
-
-                {/* パスワード要件表示 - 表示タイミングを調整 */}
-                {showPasswordRequirements && (
-                  <div className="mt-4">
+              {showPasswordRequirements && (
+                <div className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+                  {/* パスワード要件表示 */}
+                  <div>
                     <p className="text-xs text-gray-600 mb-2">
                       安全なパスワードの条件：
                     </p>
                     <div className="grid grid-cols-1 gap-1.5">
-                      <RequirementItem met={hasMinLength} text="8文字以上" />
+                      <RequirementItem met={hasMinLength} text="12文字以上" />
                       <RequirementItem
                         met={hasUpperCase}
                         text="大文字（A-Z）を含む"
@@ -275,8 +282,8 @@ const RegisterPage: NextPage = () => {
                       />
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -339,4 +346,4 @@ const RegisterPage: NextPage = () => {
   );
 };
 
-export default RegisterPage;
+export default SignupPage;

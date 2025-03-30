@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { Size } from "@prisma/client";
 import { useSession, signIn } from "next-auth/react";
 import { toast } from "react-hot-toast";
+import { useAnonymousSession } from "@/contexts/anonymous-session";
 import SizeSelector from "./SizeSelector";
 import QuantitySelector from "./QuantitySelector";
 import ActionButtons from "./ActionButtons";
@@ -41,13 +42,15 @@ type ItemData = {
 type ItemInfoProps = {
   item: ItemData;
   onAddToCart: (size: Size | null, quantity: number) => Promise<void>;
+  onSizeChange?: (size: Size | null) => void;
 };
 
-const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
+const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart, onSizeChange }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { anonymousSessionToken, updateCartCount } = useAnonymousSession();
   const [isLoading, setIsLoading] = useState(false);
 
   // 選択されたサイズの在庫を取得
@@ -74,6 +77,11 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
   const handleSizeSelect = (size: Size | null) => {
     setSelectedSize(size);
 
+    // 親コンポーネントにサイズ変更を通知
+    if (onSizeChange) {
+      onSizeChange(size);
+    }
+
     // サイズを変更した時に、在庫がある場合のみ数量を調整
     const sizeData = item.itemSizes.find((s) => s.size === size);
     const newInventory = sizeData ? sizeData.inventory : 0;
@@ -92,36 +100,28 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
   // ログイン状態確認と未ログイン時の処理
   const checkAuth = () => {
     // 認証状態を詳細にチェック
-    console.log("認証状態確認:", { status, session });
+    console.log("認証状態確認:", { status, session, anonymousSessionToken });
 
     if (status === "loading") {
       console.log("認証情報読み込み中");
-      return false;
+      return { authenticated: false, anonymous: false };
     }
 
-    if (status !== "authenticated") {
-      console.log("非認証状態:", status);
-      toast.error("ログインが必要です");
-      signIn(undefined, { callbackUrl: router.asPath });
-      return false;
+    // 認証済みの場合
+    if (status === "authenticated" && session?.user?.id) {
+      console.log("認証成功:", session.user);
+      return { authenticated: true, anonymous: false };
     }
 
-    if (!session) {
-      console.log("セッションなしエラー");
-      toast.error("セッションが存在しません。再ログインしてください");
-      signIn(undefined, { callbackUrl: router.asPath });
-      return false;
+    // 未ログインで匿名セッションがある場合
+    if (anonymousSessionToken) {
+      console.log("匿名セッションで続行:", anonymousSessionToken);
+      return { authenticated: false, anonymous: true };
     }
 
-    if (!session.user?.id) {
-      console.log("ユーザーIDなしエラー:", session);
-      toast.error("ユーザー情報が不完全です。再ログインしてください");
-      signIn(undefined, { callbackUrl: router.asPath });
-      return false;
-    }
-
-    console.log("認証成功:", session.user);
-    return true;
+    // どちらもない場合
+    console.log("認証情報および匿名セッションがありません");
+    return { authenticated: false, anonymous: false };
   };
 
   const handleAddToCart = async () => {
@@ -150,25 +150,72 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
         console.log("カート追加処理: 認証確認開始");
 
         // ログイン確認
-        if (!checkAuth()) {
-          console.log("認証確認失敗");
+        const authResult = checkAuth();
+        console.log('認証結果:', authResult);
+
+        if (!authResult.authenticated && !authResult.anonymous) {
+          // ログインも匿名セッションもない場合
+          toast.error("ログインが必要です");
+          signIn(undefined, { callbackUrl: router.asPath });
           setIsLoading(false);
           return;
         }
 
-        console.log("カート追加処理: API呼び出し開始", {
-          selectedSize,
-          quantity,
-        });
+        // 認証状態に応じて処理を変更
+        if (authResult.authenticated) {
+          // ログイン済みの場合は通常の処理
+          console.log("カート追加処理: ログイン済みAPI呼び出し開始", {
+            selectedSize,
+            quantity,
+          });
 
-        try {
-          await onAddToCart(selectedSize, quantity);
-          toast.success("カートに追加しました");
-          console.log("カート追加処理成功");
-        } catch (error) {
-          console.error("カート追加APIエラー:", error);
-          // ここではエラーメッセージを表示しない（親コンポーネントから投げられたエラーをそのまま続ける）
-          throw error;
+          try {
+            await onAddToCart(selectedSize, quantity);
+            toast.success("カートに追加しました");
+            console.log("カート追加処理成功");
+          } catch (error) {
+            console.error("カート追加APIエラー:", error);
+            throw error;
+          }
+        } else if (authResult.anonymous) {
+          // 未ログインの場合は匿名セッションを使用
+          console.log("カート追加処理: 匿名セッションAPI呼び出し開始", {
+            anonymousSessionToken,
+            selectedSize,
+            quantity,
+          });
+
+          try {
+            const response = await fetch("/api/cart/anonymous-add", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                anonymousSessionToken,
+                itemId: item.id,
+                quantity,
+                size: selectedSize,
+              }),
+            });
+
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.message || `エラー: ${response.status}`);
+            }
+
+            const data = await response.json();
+            // カート数を更新
+            if (data.cart?.items?.length) {
+              updateCartCount(data.cart.items.length);
+            }
+
+            toast.success("カートに追加しました");
+            console.log("匿名カート追加処理成功");
+          } catch (error) {
+            console.error("匿名カート追加APIエラー:", error);
+            throw error;
+          }
         }
       } catch (error) {
         console.error("カート追加全体エラー:", error);
@@ -225,8 +272,36 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
         console.log("今すぐ買う: 認証確認開始");
 
         // ログイン確認
-        if (!checkAuth()) {
-          console.log("認証確認失敗");
+        const authResult = checkAuth();
+        console.log('認証結果:', authResult);
+
+        // 今すぐ買うの場合は、認証が必要
+        if (!authResult.authenticated) {
+          // 決済ページに遷移する前に先に匿名カートに追加
+          if (authResult.anonymous) {
+            try {
+              // 匿名カートに追加
+              await fetch("/api/cart/anonymous-add", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  anonymousSessionToken,
+                  itemId: item.id,
+                  quantity,
+                  size: selectedSize,
+                }),
+              });
+            } catch (error) {
+              console.error("匿名カート追加エラー:", error);
+            }
+          }
+          
+          // ログインページに遷移し、ログイン後にチェックアウトページにリダイレクト
+          console.log("ログインが必要です。ログインページに遷移します");
+          toast.error("決済にはログインが必要です");
+          signIn(undefined, { callbackUrl: "/checkout" });
           setIsLoading(false);
           return;
         }
@@ -323,6 +398,7 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart }) => {
             selectedSize={selectedSize}
             hasSizes={item.hasSizes}
             itemSizes={item.itemSizes}
+            gender={item.gender}
           />
 
           {selectedSize && (

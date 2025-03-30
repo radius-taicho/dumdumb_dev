@@ -1,0 +1,17 @@
+// ユーザーアイコンモデル
+model UserIcon {
+  id           String    @id @default(uuid())
+  name         String
+  mediaId      String
+  media        Media     @relation(fields: [mediaId], references: [id])
+  isActive     Boolean   @default(true)  // 表示/非表示の状態
+  displayOrder Int       @default(999)   // 表示順
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Media モデルに関連を追加
+model Media {
+  // 既存のフィールド...
+  userIcons    UserIcon[]
+}

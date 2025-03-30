@@ -1,15 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
+import { toast } from 'react-hot-toast';
 
 type RestockNotificationProps = {
-  isVisible: boolean;
+  isVisible?: boolean;
+  itemId?: string;
+  size?: string;
 };
 
-const RestockNotification: React.FC<RestockNotificationProps> = ({ isVisible }) => {
+const RestockNotification: React.FC<RestockNotificationProps> = ({ 
+  isVisible = true, 
+  itemId,
+  size 
+}) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { data: session } = useSession();
 
-  const handleSubscribe = () => {
-    setIsSubscribed(!isSubscribed);
+  // 初期状態を取得
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (!session?.user?.id || !itemId || !size) return;
+
+      try {
+        const response = await fetch(`/api/notifications/check-subscription?itemId=${itemId}&size=${size}`);
+        if (response.ok) {
+          const data = await response.json();
+          setIsSubscribed(data.isSubscribed);
+        }
+      } catch (error) {
+        console.error('登録状態の確認に失敗しました:', error);
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, [session, itemId, size]);
+
+  const handleSubscribe = async () => {
+    if (isLoading) return;
+    
+    if (!session?.user) {
+      toast.error('通知を受け取るにはログインが必要です');
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
+      return;
+    }
+
+    if (!itemId || !size) {
+      toast.error('商品情報が正しく設定されていません');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/notifications/restock-subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemId, size }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setIsSubscribed(data.isSubscribed);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || '通知登録に失敗しました');
+      }
+    } catch (error) {
+      console.error('通知登録エラー:', error);
+      toast.error('通知の登録中にエラーが発生しました');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isVisible) return null;
@@ -21,9 +89,10 @@ const RestockNotification: React.FC<RestockNotificationProps> = ({ isVisible }) 
           onClick={handleSubscribe}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
+          disabled={isLoading}
           className={`flex items-center justify-center w-8 h-8 rounded-full ${
             isSubscribed ? "bg-gray-200" : "bg-white border border-gray-300"
-          }`}
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           aria-label={isSubscribed ? "再入荷通知を解除" : "再入荷通知を設定"}
         >
           <svg

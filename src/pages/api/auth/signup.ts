@@ -17,8 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // パスワードの長さチェック
-    if (password.length < 8) {
-      return res.status(400).json({ message: 'パスワードは8文字以上必要です' });
+    if (password.length < 12) {
+      return res.status(400).json({ message: 'パスワードは12文字以上必要です' });
     }
 
     // パスワードの複雑性チェック

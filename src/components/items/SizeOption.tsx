@@ -4,6 +4,7 @@ import RestockNotification from './RestockNotification';
 
 type SizeOptionProps = {
   size: Size;
+  displayName: string; // 表示用の名前を追加（100, 110など）
   isSelected: boolean;
   inventory: number;
   onSelect: () => void;
@@ -11,6 +12,7 @@ type SizeOptionProps = {
 
 const SizeOption: React.FC<SizeOptionProps> = ({ 
   size, 
+  displayName,
   isSelected, 
   inventory, 
   onSelect 
@@ -30,10 +32,10 @@ const SizeOption: React.FC<SizeOptionProps> = ({
             ? "bg-gray-200 text-gray-700"
             : "bg-zinc-300"
         } relative text-xl`}
-        aria-label={`サイズ ${size} を選択`}
+        aria-label={`サイズ ${displayName} を選択`}
         aria-pressed={isSelected}
       >
-        {size}
+        {displayName}
         {isOutOfStock && (
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black bg-opacity-30 text-white text-xs">
             SOLD OUT

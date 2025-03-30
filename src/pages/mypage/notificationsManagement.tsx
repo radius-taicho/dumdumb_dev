@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { useSession } from "next-auth/react";
 import { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -11,6 +13,45 @@ type Category = {
 };
 
 const NotificationsManagementPage: NextPage = () => {
+  const { data: session } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 初期設定を取得
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        const response = await fetch("/api/notifications/settings");
+        if (response.ok) {
+          const data = await response.json();
+
+          // データがあれば設定を更新
+          if (data) {
+            setReceiveAllNotifications(data.receiveAllNotifications);
+            setReceiveSiteNotifications(data.receiveSiteNotifications);
+            setReceiveEmailNotifications(data.receiveEmailNotifications);
+            setNotificationFrequency(data.notificationFrequency);
+
+            // カテゴリー設定の更新
+            if (data.categorySettings) {
+              setCategories((prevCategories) =>
+                prevCategories.map((category) => ({
+                  ...category,
+                  checked:
+                    data.categorySettings[category.id] ?? category.checked,
+                }))
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error("通知設定の取得に失敗しました:", error);
+      }
+    };
+
+    fetchSettings();
+  }, [session]);
   // 通知内容の設定状態
   const [receiveAllNotifications, setReceiveAllNotifications] = useState(true);
 
@@ -44,9 +85,34 @@ const NotificationsManagementPage: NextPage = () => {
   };
 
   // 設定を保存する関数
-  const saveSettings = () => {
-    // 実際のアプリでは、ここでAPIリクエストを送信して設定を保存します
-    alert("設定が保存されました");
+  const saveSettings = async () => {
+    try {
+      const response = await fetch("/api/notifications/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          receiveAllNotifications,
+          receiveEmailNotifications,
+          receiveSiteNotifications,
+          notificationFrequency,
+          categorySettings: categories.reduce((acc, category) => {
+            acc[category.id] = category.checked;
+            return acc;
+          }, {}),
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("通知設定を保存しました");
+      } else {
+        toast.error("設定の保存に失敗しました");
+      }
+    } catch (error) {
+      console.error("通知設定保存エラー:", error);
+      toast.error("設定の保存中にエラーが発生しました");
+    }
   };
 
   return (
@@ -56,6 +122,13 @@ const NotificationsManagementPage: NextPage = () => {
         <meta name="description" content="DumDumbの通知管理設定" />
       </Head>
       <div className="container min-h-[calc(100vh-72px)] mx-auto px-4 py-8">
+        <div className="flex items-center mb-6">
+          <Link href="/mypage" className="mr-2">
+            <span className="text-gray-500 hover:text-gray-700">
+              &lt; マイページに戻る
+            </span>
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold mb-6 sm:mb-8">通知管理</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8 md:mb-12">

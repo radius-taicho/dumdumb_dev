@@ -1,0 +1,94 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
+import { prisma } from '@/lib/prisma';
+
+type Data = {
+  success: boolean;
+  message?: string;
+  cartCount?: number;
+  favoritesCount?: number;
+};
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
+
+  try {
+    // 認証確認
+    const session = await getServerSession(req, res, authOptions);
+    if (!session || !session.user) {
+      // 認証されていなくてもエラーではなく0カウントを返す
+      return res.status(200).json({ 
+        success: true, 
+        cartCount: 0,
+        favoritesCount: 0,
+        message: 'Not authenticated' 
+      });
+    }
+
+    const userId = session.user.id;
+    console.log('Fetching counts for user ID:', userId);
+
+    try {
+      // ユーザーのカートとお気に入りを取得
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          cart: {
+            include: {
+              items: true,
+            },
+          },
+          favorites: true,
+        },
+      });
+
+      if (!user) {
+        console.log('User not found:', userId);
+        return res.status(200).json({ 
+          success: true, 
+          cartCount: 0,
+          favoritesCount: 0,
+          message: 'User not found' 
+        });
+      }
+
+      // カウントを計算
+      const cartCount = user.cart?.items.reduce(
+        (total, item) => total + item.quantity,
+        0
+      ) || 0;
+      
+      const favoritesCount = user.favorites.length || 0;
+
+      return res.status(200).json({
+        success: true,
+        cartCount,
+        favoritesCount,
+      });
+    } catch (dbError) {
+      console.error('Database error in user counts API:', dbError);
+      // データベースエラーの場合も0カウントを返す
+      return res.status(200).json({ 
+        success: true, 
+        cartCount: 0,
+        favoritesCount: 0,
+        message: 'Error fetching counts'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching user counts:', error);
+    // エラー時も正常レスポンスを返して、クライアント側のエラーを防ぐ
+    return res.status(200).json({ 
+      success: true, 
+      cartCount: 0,
+      favoritesCount: 0,
+      message: 'Error processing request'
+    });
+  }
+}

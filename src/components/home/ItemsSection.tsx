@@ -169,7 +169,9 @@ const ItemsSection: React.FC<ItemsSectionProps> = ({
                     )}
                   </button>
                 </div>
-                <h3 className="text-base font-medium line-clamp-1 mb-1">{item.name}</h3>
+                <h3 className="text-base font-medium line-clamp-1 mb-1">
+                  {item.name}
+                </h3>
                 <p className="text-lg font-bold">
                   ¥{Number(item.price).toLocaleString()}
                 </p>
@@ -178,7 +180,9 @@ const ItemsSection: React.FC<ItemsSectionProps> = ({
           ))
         ) : (
           <div className="col-span-3 py-16 text-center">
-            <p className="text-gray-500 mb-4">該当するアイテムがありません</p>
+            <p className="text-gray-500 mb-4">
+              該当するアイテムがまだないよ...
+            </p>
             <button
               onClick={() => {
                 handleGenderSelect("ALL");

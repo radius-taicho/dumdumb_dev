@@ -1,39 +1,143 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { NextPage } from "next";
 import Head from "next/head";
-import Link from "next/link";
-import Image from "next/image";
+import { useSession } from "next-auth/react";
+import { useAnonymousSession } from "@/contexts/anonymous-session";
+import { toast } from "react-hot-toast";
 
-// 最近見たアイテムデータ
-const recentlyViewedItems = [
-  { id: "1", name: "アイテム名", price: 4800, imageUrl: "/path/to/item1.jpg" },
-  { id: "2", name: "アイテム名", price: 4800, imageUrl: "/path/to/item2.jpg" },
-  { id: "3", name: "アイテム名", price: 4800, imageUrl: "/path/to/item3.jpg" },
-  { id: "4", name: "アイテム名", price: 4800, imageUrl: "/path/to/item4.jpg" },
-  { id: "5", name: "アイテム名", price: 4800, imageUrl: "/path/to/item5.jpg" },
-  { id: "6", name: "アイテム名", price: 4800, imageUrl: "/path/to/item6.jpg" },
-  { id: "7", name: "アイテム名", price: 4800, imageUrl: "/path/to/item7.jpg" },
-];
+// コンポーネントのインポート
+import { RecentlyViewedSection } from "@/components/mypage/RecentlyViewedSection";
+import { FrequentlyViewedSection } from "@/components/mypage/FrequentlyViewedSection";
+import { RecommendedItemsSection } from "@/components/mypage/RecommendedItemsSection";
 
-// よく見ているアイテムデータ
-const frequentlyViewedItems = [
-  { id: "8", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq1.jpg" },
-  { id: "9", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq2.jpg" },
-  { id: "10", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq3.jpg" },
-  { id: "11", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq4.jpg" },
-  { id: "12", name: "アイテム名", price: 4800, imageUrl: "/path/to/freq5.jpg" },
-];
-
-// おすすめアイテムデータ
-const recommendedItems = [
-  { id: "13", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec1.jpg" },
-  { id: "14", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec2.jpg" },
-  { id: "15", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec3.jpg" },
-  { id: "16", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec4.jpg" },
-  { id: "17", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec5.jpg" },
-];
+// 型定義のインポート
+import { ViewItem, ViewHistoryDetailsMap } from "@/types/view-history";
 
 const InterestedItemsPage: NextPage = () => {
+  const { data: session, status } = useSession();
+  const { anonymousSessionToken } = useAnonymousSession();
+  const [loading, setLoading] = useState(true);
+  const [recentlyViewedItems, setRecentlyViewedItems] = useState<ViewItem[]>(
+    []
+  );
+  const [frequentlyViewedItems, setFrequentlyViewedItems] = useState<
+    ViewItem[]
+  >([]);
+  const [recommendedItems, setRecommendedItems] = useState<ViewItem[]>([]);
+
+  // 全アイテムの視聴履歴を取得
+  const [viewHistoryDetails, setViewHistoryDetails] =
+    useState<ViewHistoryDetailsMap>({});
+  const [showViewHistory, setShowViewHistory] = useState<string | null>(null);
+
+  // 視聴履歴とおすすめアイテムを取得
+  useEffect(() => {
+    const fetchViewHistory = async () => {
+      try {
+        setLoading(true);
+
+        // ログイン状態または匿名セッションがあればデータを取得
+        if (
+          (status === "authenticated" && session?.user) ||
+          anonymousSessionToken
+        ) {
+          // URLクエリパラメータの構築
+          const params = new URLSearchParams();
+          if (anonymousSessionToken) {
+            params.append("anonymousSessionToken", anonymousSessionToken);
+          }
+
+          const response = await fetch(
+            `/api/view-history/get?${params.toString()}`
+          );
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch view history");
+          }
+
+          const data = await response.json();
+
+          // 取得したデータを設定
+          setRecentlyViewedItems(data.recentlyViewed || []);
+          setFrequentlyViewedItems(data.frequentlyViewed || []);
+          setRecommendedItems(data.recommended || []);
+        } else {
+          // 認証情報がない場合は空配列に設定
+          setRecentlyViewedItems([]);
+          setFrequentlyViewedItems([]);
+          setRecommendedItems([]);
+        }
+      } catch (error) {
+        console.error("Error fetching view history:", error);
+        toast.error("履歴の取得中にエラーが発生しました");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchViewHistory();
+  }, [session, status, anonymousSessionToken]);
+
+  // 視聴履歴の詳細を取得
+  useEffect(() => {
+    const fetchViewHistoryDetails = async () => {
+      try {
+        // ログイン状態または匿名セッションがあればデータを取得
+        if (
+          (status === "authenticated" && session?.user) ||
+          anonymousSessionToken
+        ) {
+          // URLクエリパラメータの構築
+          const params = new URLSearchParams();
+          if (anonymousSessionToken) {
+            params.append("anonymousSessionToken", anonymousSessionToken);
+          }
+
+          const response = await fetch(
+            `/api/view-history/details?${params.toString()}`
+          );
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch view history details");
+          }
+
+          const data = await response.json();
+          if (data.success && data.viewHistoryDetails) {
+            // サーバーから返されたデータを受け取り、日付文字列をDateオブジェクトに変換
+            const processedDetails: ViewHistoryDetailsMap = {};
+
+            Object.entries(data.viewHistoryDetails).forEach(
+              ([itemId, details]: [string, any]) => {
+                processedDetails[itemId] = {
+                  dates: details.dates.map(
+                    (dateStr: string) => new Date(dateStr)
+                  ),
+                  count: details.count,
+                };
+              }
+            );
+
+            setViewHistoryDetails(processedDetails);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching view history details:", error);
+      }
+    };
+
+    fetchViewHistoryDetails();
+  }, [session, status, anonymousSessionToken]);
+
+  // 視聴履歴の表示/非表示を切り替える
+  const toggleViewHistory = (itemId: string) => {
+    if (showViewHistory === itemId) {
+      setShowViewHistory(null);
+    } else {
+      setShowViewHistory(itemId);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -44,76 +148,33 @@ const InterestedItemsPage: NextPage = () => {
         />
       </Head>
       <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center mb-6">
+          <Link href="/mypage" className="mr-2">
+            <span className="text-gray-500 hover:text-gray-700">
+              &lt; マイページに戻る
+            </span>
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold mb-6">気になっているアイテム</h1>
 
-        {/* 最近見たアイテム */}
-        <div className="mt-20">
-          <h2 className="text-xl font-bold mb-4">最近見たアイテム</h2>
+        {/* 最近見たアイテムセクション */}
+        <RecentlyViewedSection
+          items={recentlyViewedItems}
+          viewHistoryDetails={viewHistoryDetails}
+          showViewHistory={showViewHistory}
+          toggleViewHistory={toggleViewHistory}
+        />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {recentlyViewedItems.map((item) => (
-              <Link
-                href={`/items/${item.id}`}
-                key={item.id}
-                className="block border hover:border-gray-400 transition-colors"
-              >
-                <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                  <span className="text-sm text-gray-500">アイテム画像</span>
-                </div>
-                <div className="p-2">
-                  <h3 className="text-sm">{item.name}</h3>
-                  <p className="text-sm mt-1">¥{item.price.toLocaleString()}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* よく見ているアイテム */}
-        <div className="mt-20">
-          <h2 className="text-xl font-bold mb-4">よく見ているアイテム</h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {frequentlyViewedItems.map((item) => (
-              <Link
-                href={`/items/${item.id}`}
-                key={item.id}
-                className="block border hover:border-gray-400 transition-colors"
-              >
-                <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                  <span className="text-sm text-gray-500">アイテム画像</span>
-                </div>
-                <div className="p-2">
-                  <h3 className="text-sm">{item.name}</h3>
-                  <p className="text-sm mt-1">¥{item.price.toLocaleString()}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        {/* よく見ているアイテムセクション */}
+        <FrequentlyViewedSection
+          items={frequentlyViewedItems}
+          viewHistoryDetails={viewHistoryDetails}
+          showViewHistory={showViewHistory}
+          toggleViewHistory={toggleViewHistory}
+        />
 
         {/* おすすめアイテムセクション */}
-        <div className="mt-20">
-          <h2 className="text-2xl font-bold mb-6">dumdumbからのおすすめ</h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {recommendedItems.map((item) => (
-              <Link
-                href={`/items/${item.id}`}
-                key={item.id}
-                className="block border hover:border-gray-400 transition-colors"
-              >
-                <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                  <span className="text-sm text-gray-500">アイテム画像</span>
-                </div>
-                <div className="p-2">
-                  <h3 className="text-sm">{item.name}</h3>
-                  <p className="text-sm mt-1">¥{item.price.toLocaleString()}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <RecommendedItemsSection items={recommendedItems} loading={loading} />
       </div>
     </>
   );

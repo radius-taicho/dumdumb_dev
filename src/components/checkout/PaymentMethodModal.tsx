@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import StripeProvider from './payment/StripeProvider';
-import CreditCardForm from './payment/CreditCardForm';
+import React, { useState } from "react";
+import StripeProvider from "./payment/StripeProvider";
+import CreditCardForm from "./payment/CreditCardForm";
 
 type PaymentMethodModalProps = {
   onClose: () => void;
@@ -11,10 +11,12 @@ type PaymentMethodModalProps = {
 const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
   onClose,
   onSubmit,
-  isProcessing
+  isProcessing,
 }) => {
   const [isDefault, setIsDefault] = useState(false);
-  const [paymentType, setPaymentType] = useState<'CREDIT_CARD' | 'OTHER'>('CREDIT_CARD');
+  const [paymentType, setPaymentType] = useState<"CREDIT_CARD" | "OTHER">(
+    "CREDIT_CARD"
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   // クレジットカード完了時のハンドラー
@@ -41,28 +43,28 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
             <button
               type="button"
               className={`px-4 py-2 rounded-md ${
-                paymentType === 'CREDIT_CARD'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                paymentType === "CREDIT_CARD"
+                  ? "bg-orange-500 text-white"
+                  : "bg-gray-200 text-gray-700"
               }`}
-              onClick={() => setPaymentType('CREDIT_CARD')}
+              onClick={() => setPaymentType("CREDIT_CARD")}
             >
               クレジットカード
             </button>
             <button
               type="button"
               className={`px-4 py-2 rounded-md ${
-                paymentType === 'OTHER'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                paymentType === "OTHER"
+                  ? "bg-orange-500 text-white"
+                  : "bg-gray-200 text-gray-700"
               }`}
-              onClick={() => setPaymentType('OTHER')}
+              onClick={() => setPaymentType("OTHER")}
             >
               その他のお支払い方法
             </button>
           </div>
 
-          {paymentType === 'CREDIT_CARD' && (
+          {paymentType === "CREDIT_CARD" && (
             <StripeProvider>
               <CreditCardForm
                 onComplete={handleCreditCardComplete}
@@ -72,13 +74,13 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
               />
             </StripeProvider>
           )}
-          
-          {paymentType === 'OTHER' && (
+
+          {paymentType === "OTHER" && (
             <div className="space-y-4">
               <p className="text-sm text-gray-700">
-                お支払いは商品到着後にご対応いただきます。
+                お支払いはアイテム到着後にご対応いただきます。
               </p>
-              
+
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -87,11 +89,14 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   onChange={(e) => setIsDefault(e.target.checked)}
                   className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
                 />
-                <label htmlFor="default-other" className="ml-2 block text-sm text-gray-700">
+                <label
+                  htmlFor="default-other"
+                  className="ml-2 block text-sm text-gray-700"
+                >
                   デフォルトの支払い方法として設定する
                 </label>
               </div>
-              
+
               <div className="flex justify-end space-x-3 mt-4">
                 <button
                   type="button"
@@ -104,8 +109,8 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   type="button"
                   onClick={() => {
                     onSubmit({
-                      type: 'OTHER',
-                      isDefault
+                      type: "OTHER",
+                      isDefault,
                     });
                   }}
                   className="px-4 py-2 text-sm font-medium text-white bg-orange-500 border border-transparent rounded-md hover:bg-orange-600 focus:outline-none"

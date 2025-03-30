@@ -1,4 +1,4 @@
-import { sendEmail, createEmailTemplate } from '../sendgrid';
+import { sendEmail, createEmailTemplate } from "../sendgrid";
 
 export type OrderItem = {
   itemId: string;
@@ -30,38 +30,49 @@ export type User = {
 /**
  * 注文確認メールのHTMLコンテンツを生成する
  */
-export function generateOrderConfirmationEmail(order: Order, user: User): string {
-  // 商品リストのHTML生成
-  const itemsHtml = order.items.map((item) => {
-    const itemName = item.item?.name || '商品名なし';
-    const itemPrice = Number(item.price || item.item?.price || 0);
-    const itemTotal = itemPrice * item.quantity;
-    
-    return `
+export function generateOrderConfirmationEmail(
+  order: Order,
+  user: User
+): string {
+  // アイテムリストのHTML生成
+  const itemsHtml = order.items
+    .map((item) => {
+      const itemName = item.item?.name || "アイテム名なし";
+      const itemPrice = Number(item.price || item.item?.price || 0);
+      const itemTotal = itemPrice * item.quantity;
+
+      return `
       <tr>
         <td style="padding: 10px; border-bottom: 1px solid #eee;">${itemName}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.size || '-'}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${
+          item.size || "-"
+        }</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">¥${itemPrice.toLocaleString()}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${
+          item.quantity
+        }</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">¥${itemTotal.toLocaleString()}</td>
       </tr>
     `;
-  }).join('');
+    })
+    .join("");
 
   // 注文日時のフォーマット
-  const orderDate = new Date(order.createdAt).toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  const orderDate = new Date(order.createdAt).toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   // 小計、送料、合計の計算
-  const subtotal = order.subtotal || order.items.reduce((sum, item) => {
-    return sum + Number(item.price || 0) * item.quantity;
-  }, 0);
-  
+  const subtotal =
+    order.subtotal ||
+    order.items.reduce((sum, item) => {
+      return sum + Number(item.price || 0) * item.quantity;
+    }, 0);
+
   const shippingFee = order.shippingFee || 0;
   const tax = order.tax || Math.floor(subtotal * 0.1); // 10%の消費税
   const total = order.totalAmount;
@@ -83,7 +94,7 @@ export function generateOrderConfirmationEmail(order: Order, user: User): string
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
           <tr style="background-color: #f5f5f5;">
-            <th style="padding: 10px; text-align: left;">商品名</th>
+            <th style="padding: 10px; text-align: left;">アイテム名</th>
             <th style="padding: 10px; text-align: center;">サイズ</th>
             <th style="padding: 10px; text-align: right;">価格</th>
             <th style="padding: 10px; text-align: center;">数量</th>
@@ -132,13 +143,16 @@ export function generateOrderConfirmationEmail(order: Order, user: User): string
 /**
  * 注文確認メールを送信する関数
  */
-export async function sendOrderConfirmationEmail(order: Order, user: User): Promise<boolean> {
+export async function sendOrderConfirmationEmail(
+  order: Order,
+  user: User
+): Promise<boolean> {
   const subject = `DumDumb - ご注文確認 [注文番号: ${order.id}]`;
   const htmlContent = generateOrderConfirmationEmail(order, user);
 
   return await sendEmail({
     to: user.email,
     subject,
-    html: htmlContent
+    html: htmlContent,
   });
 }

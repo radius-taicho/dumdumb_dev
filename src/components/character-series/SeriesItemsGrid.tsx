@@ -20,13 +20,20 @@ type SeriesItemsGridProps = {
 
 type Gender = "ALL" | "MEN" | "WOMEN" | "KIDS";
 
-const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) => {
+const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({
+  seriesId,
+  items,
+}) => {
   const { data: session, status } = useSession();
   const [selectedGender, setSelectedGender] = useState<Gender>("ALL");
-  const [sortOrder, setSortOrder] = useState<"newest" | "priceHigh" | "priceLow">("newest");
+  const [sortOrder, setSortOrder] = useState<
+    "newest" | "priceHigh" | "priceLow"
+  >("newest");
   const [filteredItems, setFilteredItems] = useState<Item[]>(items);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
-  const [loadingFavorites, setLoadingFavorites] = useState<Record<string, boolean>>({});
+  const [loadingFavorites, setLoadingFavorites] = useState<
+    Record<string, boolean>
+  >({});
 
   // 性別フィルタリング
   useEffect(() => {
@@ -35,16 +42,18 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
     // 性別でフィルタリング
     if (selectedGender !== "ALL") {
       result = result.filter((item) => {
-        // UNISEX商品はMENとWOMENの両方に表示
-        if ((item.gender === "UNISEX" || item.gender === null) && 
-            (selectedGender === "MEN" || selectedGender === "WOMEN")) {
+        // UNISEXアイテムはMENとWOMENの両方に表示
+        if (
+          (item.gender === "UNISEX" || item.gender === null) &&
+          (selectedGender === "MEN" || selectedGender === "WOMEN")
+        ) {
           return true;
         }
         // 通常のフィルタリング
         return item.gender === selectedGender;
       });
     }
-    // ALLの場合は全ての商品を表示
+    // ALLの場合は全てのアイテムを表示
 
     // 並び替え
     switch (sortOrder) {
@@ -65,76 +74,81 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
 
   // お気に入り状態の取得
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (status === "authenticated" && session?.user) {
       const fetchFavoritesStatus = async () => {
         try {
           const initialFavorites: Record<string, boolean> = {};
-          
+
           for (const item of items) {
-            const response = await fetch(`/api/favorites/check?itemId=${item.id}`);
+            const response = await fetch(
+              `/api/favorites/check?itemId=${item.id}`
+            );
             if (response.ok) {
               const data = await response.json();
               initialFavorites[item.id] = data.isFavorite;
             }
           }
-          
+
           setFavorites(initialFavorites);
         } catch (error) {
-          console.error('Error fetching favorites status:', error);
+          console.error("Error fetching favorites status:", error);
         }
       };
-      
+
       fetchFavoritesStatus();
     }
   }, [status, session, items]);
 
   // お気に入りトグル
-  const handleFavoriteClick = async (itemId: string, event: React.MouseEvent) => {
+  const handleFavoriteClick = async (
+    itemId: string,
+    event: React.MouseEvent
+  ) => {
     event.preventDefault();
     event.stopPropagation();
-    
-    if (status !== 'authenticated' || !session?.user) {
-      toast.error('お気に入り機能を使用するにはログインが必要です');
+
+    if (status !== "authenticated" || !session?.user) {
+      toast.error("お気に入り機能を使用するにはログインが必要です");
       return;
     }
-    
+
     if (loadingFavorites[itemId]) return;
-    
-    setLoadingFavorites(prev => ({ ...prev, [itemId]: true }));
-    
+
+    setLoadingFavorites((prev) => ({ ...prev, [itemId]: true }));
+
     try {
       if (favorites[itemId]) {
-        const response = await fetch('/api/favorites/remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/favorites/remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ itemId }),
         });
-        
+
         if (response.ok) {
-          setFavorites(prev => ({ ...prev, [itemId]: false }));
-          toast.success('お気に入りから削除しました');
+          setFavorites((prev) => ({ ...prev, [itemId]: false }));
+          toast.success("お気に入りから削除しました");
         } else {
-          toast.error('お気に入りの削除に失敗しました');
+          toast.error("お気に入りの削除に失敗しました");
         }
       } else {
-        const response = await fetch('/api/favorites/add', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/favorites/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ itemId }),
         });
-        
+
         if (response.ok) {
-          setFavorites(prev => ({ ...prev, [itemId]: true }));
-          toast.success('お気に入りに追加しました');
+          setFavorites((prev) => ({ ...prev, [itemId]: true }));
+          toast.success("お気に入りに追加しました");
         } else {
-          toast.error('お気に入りの追加に失敗しました');
+          toast.error("お気に入りの追加に失敗しました");
         }
       }
     } catch (error) {
-      console.error('Favorite toggle error:', error);
-      toast.error('お気に入りの操作中にエラーが発生しました');
+      console.error("Favorite toggle error:", error);
+      toast.error("お気に入りの操作中にエラーが発生しました");
     } finally {
-      setLoadingFavorites(prev => ({ ...prev, [itemId]: false }));
+      setLoadingFavorites((prev) => ({ ...prev, [itemId]: false }));
     }
   };
 
@@ -147,16 +161,16 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold text-center mb-8">
-        シリーズアイテム
-      </h2>
+      <h2 className="text-2xl font-bold text-center mb-8">シリーズアイテム</h2>
 
       {/* タブナビゲーション */}
       <div className="border-b mb-6">
         <div className="flex justify-center">
           <button
             className={`px-6 py-2 ${
-              selectedGender === "ALL" ? "font-bold border-b-2 border-black" : ""
+              selectedGender === "ALL"
+                ? "font-bold border-b-2 border-black"
+                : ""
             }`}
             onClick={() => setSelectedGender("ALL")}
           >
@@ -164,7 +178,9 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
           </button>
           <button
             className={`px-6 py-2 ${
-              selectedGender === "MEN" ? "font-bold border-b-2 border-black" : ""
+              selectedGender === "MEN"
+                ? "font-bold border-b-2 border-black"
+                : ""
             }`}
             onClick={() => setSelectedGender("MEN")}
           >
@@ -172,7 +188,9 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
           </button>
           <button
             className={`px-6 py-2 ${
-              selectedGender === "WOMEN" ? "font-bold border-b-2 border-black" : ""
+              selectedGender === "WOMEN"
+                ? "font-bold border-b-2 border-black"
+                : ""
             }`}
             onClick={() => setSelectedGender("WOMEN")}
           >
@@ -180,7 +198,9 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
           </button>
           <button
             className={`px-6 py-2 ${
-              selectedGender === "KIDS" ? "font-bold border-b-2 border-black" : ""
+              selectedGender === "KIDS"
+                ? "font-bold border-b-2 border-black"
+                : ""
             }`}
             onClick={() => setSelectedGender("KIDS")}
           >
@@ -236,7 +256,8 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
                   <img
                     src={getImageUrl(item.images)}
                     alt={item.name}
-                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" loading="lazy"
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = "/images/placeholder.jpg";
@@ -255,7 +276,9 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
                     )}
                   </button>
                 </div>
-                <h3 className="text-base font-medium line-clamp-1 mb-1">{item.name}</h3>
+                <h3 className="text-base font-medium line-clamp-1 mb-1">
+                  {item.name}
+                </h3>
                 <p className="text-lg font-bold">
                   ¥{Number(item.price).toLocaleString()}
                 </p>
@@ -264,25 +287,32 @@ const SeriesItemsGrid: React.FC<SeriesItemsGridProps> = ({ seriesId, items }) =>
           ))
         ) : (
           <div className="col-span-3 py-16 text-center">
-            <p className="text-gray-500 mb-4">該当するアイテムがありません</p>
+            <p className="text-gray-500 mb-4">
+              該当するアイテムがまだないよ...
+            </p>
           </div>
         )}
       </div>
 
       {/* スクロールボタン */}
       <div className="fixed bottom-20 right-8">
-        <button 
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-white hover:bg-gray-700 transition-colors"
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-6 w-6" 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 15l7-7 7 7"
+            />
           </svg>
         </button>
       </div>

@@ -1,14 +1,17 @@
-import { PrismaClient, User } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { PrismaClient, User } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-export type UserWithoutPassword = Omit<User, 'password'>;
+export type UserWithoutPassword = Omit<User, "password">;
 
 // ユーザー登録
-export async function registerUser(email: string, password: string): Promise<UserWithoutPassword | null> {
+export async function signupUser(
+  email: string,
+  password: string
+): Promise<UserWithoutPassword | null> {
   try {
     // メールアドレスの重複チェック
     const existingUser = await prisma.user.findUnique({
@@ -34,13 +37,16 @@ export async function registerUser(email: string, password: string): Promise<Use
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("Sign up error:", error);
     return null;
   }
 }
 
 // ユーザーログイン
-export async function loginUser(email: string, password: string): Promise<UserWithoutPassword | null> {
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<UserWithoutPassword | null> {
   try {
     // ユーザー検索
     const user = await prisma.user.findUnique({
@@ -62,7 +68,7 @@ export async function loginUser(email: string, password: string): Promise<UserWi
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     return null;
   }
 }
@@ -76,7 +82,7 @@ export function generateToken(user: UserWithoutPassword): string {
       role: user.role,
     },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: "7d" }
   );
 }
 
@@ -91,7 +97,9 @@ export function verifyToken(token: string): UserWithoutPassword | null {
 }
 
 // ユーザーID取得
-export async function getUserById(id: string): Promise<UserWithoutPassword | null> {
+export async function getUserById(
+  id: string
+): Promise<UserWithoutPassword | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -104,7 +112,7 @@ export async function getUserById(id: string): Promise<UserWithoutPassword | nul
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     return null;
   }
 }

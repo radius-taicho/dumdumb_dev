@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 type PaymentMethodType = {
   id: string;
@@ -26,13 +26,15 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
   onPaymentMethodSelect,
   onAddNew,
   onDelete,
-  isProcessing
+  isProcessing,
 }) => {
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">お支払い方法 <span className="text-red-500">*</span></h2>
-        <button 
+        <h2 className="text-lg font-semibold">
+          お支払い方法 <span className="text-red-500">*</span>
+        </h2>
+        <button
           className="text-orange-500 hover:text-orange-600"
           onClick={onAddNew}
           disabled={isProcessing}
@@ -40,15 +42,15 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
           <span className="text-xl">+</span>
         </button>
       </div>
-      
+
       {paymentMethods.length > 0 ? (
         <div className="space-y-4">
           {paymentMethods.map((paymentMethod) => (
-            <div 
-              key={paymentMethod.id} 
+            <div
+              key={paymentMethod.id}
               className={`border rounded-lg p-4 cursor-pointer ${
-                selectedPaymentMethodId === paymentMethod.id 
-                  ? "border-orange-500 bg-orange-50" 
+                selectedPaymentMethodId === paymentMethod.id
+                  ? "border-orange-500 bg-orange-50"
                   : "hover:border-gray-400"
               }`}
               onClick={() => onPaymentMethodSelect(paymentMethod.id)}
@@ -56,8 +58,8 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
               <div className="flex items-start justify-between w-full">
                 <div className="flex items-start">
                   <div className="mr-3 mt-1">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       checked={selectedPaymentMethodId === paymentMethod.id}
                       onChange={() => onPaymentMethodSelect(paymentMethod.id)}
                       className="accent-orange-500"
@@ -71,7 +73,8 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
                           {paymentMethod.cardNumber}
                         </p>
                         <p className="text-sm text-gray-700">
-                          有効期限: {paymentMethod.expiryMonth}/{paymentMethod.expiryYear}
+                          有効期限: {paymentMethod.expiryMonth}/
+                          {paymentMethod.expiryYear}
                         </p>
                       </>
                     ) : paymentMethod.type === "AmazonPay" ? (
@@ -79,12 +82,14 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
                     ) : paymentMethod.type === "OTHER" ? (
                       <>
                         <p className="font-medium">その他の支払い方法</p>
-                        <p className="text-sm text-gray-700">商品到着後にお支払い</p>
+                        <p className="text-sm text-gray-700">
+                          アイテム到着後にお支払い
+                        </p>
                       </>
                     ) : (
                       <p className="font-medium">不明な支払い方法</p>
                     )}
-                    
+
                     {paymentMethod.isDefault && (
                       <span className="inline-block mt-1 text-xs bg-gray-200 rounded px-2 py-1">
                         デフォルト
@@ -93,11 +98,15 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
                   </div>
                 </div>
                 <div>
-                  <button 
+                  <button
                     className="text-red-500 hover:text-red-700 text-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm('この支払い方法を削除してもよろしいですか？')) {
+                      if (
+                        window.confirm(
+                          "この支払い方法を削除してもよろしいですか？"
+                        )
+                      ) {
                         onDelete(paymentMethod.id);
                       }
                     }}

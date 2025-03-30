@@ -6,6 +6,7 @@ import { NextPage } from 'next';
 import { ReactElement, ReactNode } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
+import { AnonymousSessionProvider } from '@/contexts/anonymous-session';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,10 +25,12 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
 
   return (
     <SessionProvider session={session}>
-      <div className={inter.className}>
-        {getLayout(<Component {...pageProps} />)}
-        <Toaster position="top-center" />
-      </div>
+      <AnonymousSessionProvider>
+        <div className={inter.className}>
+          {getLayout(<Component {...pageProps} />)}
+          <Toaster position="top-center" />
+        </div>
+      </AnonymousSessionProvider>
     </SessionProvider>
   );
 }

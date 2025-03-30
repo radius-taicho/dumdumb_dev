@@ -216,7 +216,7 @@ export default function MainVisualSlider(): JSX.Element {
             {loading ? (
               <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400"></div>
             ) : (
-              <p>表示するスライド画像がありません</p>
+              <p>表示するスライド画像がまだないよ...</p>
             )}
           </div>
         ) : (
@@ -271,52 +271,54 @@ export default function MainVisualSlider(): JSX.Element {
           >
             <div className="flex gap-[10px] items-center">
               {displaySlides.map((dot, dotIndex) => (
-              <div key={dot.id} className="relative">
-                <button
-                  onClick={() => goToSlide(dotIndex)}
-                  className={`w-4 h-4 rounded-lg transition-colors duration-300 ${
-                    dotIndex === currentIndex ? "bg-[#595959]" : "bg-[#d9d9d9]"
-                  }`}
-                  aria-label={`スライド${dotIndex + 1}に移動`}
-                />
+                <div key={dot.id} className="relative">
+                  <button
+                    onClick={() => goToSlide(dotIndex)}
+                    className={`w-4 h-4 rounded-lg transition-colors duration-300 ${
+                      dotIndex === currentIndex
+                        ? "bg-[#595959]"
+                        : "bg-[#d9d9d9]"
+                    }`}
+                    aria-label={`スライド${dotIndex + 1}に移動`}
+                  />
 
-                {SLIDER_CONFIG.progressAnimation &&
-                  dotIndex === currentIndex && (
-                    <svg
-                      className="absolute top-0 left-0 w-6 h-6 -rotate-90"
-                      viewBox="0 0 24 24"
-                      style={{
-                        transform: "translate(-4px, -2.5px) rotate(-90deg)", // 中央に配置するためのオフセット
-                      }}
-                    >
-                      {/* 背景円（透明） */}
-                      <circle
-                        className="text-transparent"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        strokeWidth="3"
-                        fill="none"
-                        stroke="currentColor"
-                      />
-                      {/* 進行インジケーター */}
-                      <circle
-                        className="text-black" // 黒い色を使用
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        strokeWidth="3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeDasharray={`${2 * Math.PI * 10}`}
-                        strokeDashoffset={`${
-                          2 * Math.PI * 10 * (1 - progress / 100)
-                        }`}
-                      />
-                    </svg>
-                  )}
-              </div>
-            ))}
+                  {SLIDER_CONFIG.progressAnimation &&
+                    dotIndex === currentIndex && (
+                      <svg
+                        className="absolute top-0 left-0 w-6 h-6 -rotate-90"
+                        viewBox="0 0 24 24"
+                        style={{
+                          transform: "translate(-4px, -2.5px) rotate(-90deg)", // 中央に配置するためのオフセット
+                        }}
+                      >
+                        {/* 背景円（透明） */}
+                        <circle
+                          className="text-transparent"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          strokeWidth="3"
+                          fill="none"
+                          stroke="currentColor"
+                        />
+                        {/* 進行インジケーター */}
+                        <circle
+                          className="text-black" // 黒い色を使用
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          strokeWidth="3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeDasharray={`${2 * Math.PI * 10}`}
+                          strokeDashoffset={`${
+                            2 * Math.PI * 10 * (1 - progress / 100)
+                          }`}
+                        />
+                      </svg>
+                    )}
+                </div>
+              ))}
             </div>
           </div>
         )}

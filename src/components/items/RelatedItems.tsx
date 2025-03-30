@@ -29,7 +29,7 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
               (item: any) => item.id !== currentItemId
             );
             setRelatedItems(filteredItems);
-            
+
             // キャラクター名を設定（最初の関連アイテムから取得）
             if (filteredItems.length > 0 && filteredItems[0].characters) {
               const character = filteredItems[0].characters.find(
@@ -65,9 +65,9 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
         <div className="border border-gray-200 rounded-md p-6 flex flex-col items-center justify-center text-center bg-gray-50">
           <FiPackage className="w-12 h-12 text-gray-400 mb-4" />
           <p className="text-gray-600">
-            {characterName 
-              ? `${characterName}の他のアイテムはまだありません`
-              : "関連アイテムはまだありません"}
+            {characterName
+              ? `${characterName}の他のアイテムはまだないよ...`
+              : "関連アイテムはまだないよ..."}
           </p>
         </div>
       </section>
@@ -100,7 +100,9 @@ const RelatedItems: React.FC<RelatedItemsProps> = ({
               {item.characters && item.characters.length > 0 && (
                 <p className="text-xs text-gray-500 truncate">
                   {item.characters[0].name}
-                  {item.characters.length > 1 ? ` 他${item.characters.length - 1}名` : ''}
+                  {item.characters.length > 1
+                    ? ` 他${item.characters.length - 1}名`
+                    : ""}
                 </p>
               )}
             </div>
