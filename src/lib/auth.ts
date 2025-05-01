@@ -1,11 +1,10 @@
-import { PrismaClient, User } from "@prisma/client";
+import { User } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
-const prisma = new PrismaClient();
+import { prisma } from "./prisma-client";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-export type UserWithoutPassword = Omit<User, "password">;
+export type UserWithoutPassword = Omit<User, "hashedPassword">;
 
 // ユーザー登録
 export async function signupUser(
@@ -29,12 +28,13 @@ export async function signupUser(
     const user = await prisma.user.create({
       data: {
         email,
-        password: hashedPassword,
+        hashedPassword,
+        role: 'USER',
       },
     });
 
     // パスワードを除外したユーザー情報を返す
-    const { password: _, ...userWithoutPassword } = user;
+    const { hashedPassword: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
     console.error("Sign up error:", error);
@@ -58,14 +58,14 @@ export async function loginUser(
     }
 
     // パスワード検証
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.hashedPassword || '');
 
     if (!isPasswordValid) {
       return null;
     }
 
     // パスワードを除外したユーザー情報を返す
-    const { password: _, ...userWithoutPassword } = user;
+    const { hashedPassword: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
     console.error("Login error:", error);
@@ -109,7 +109,7 @@ export async function getUserById(
       return null;
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { hashedPassword: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
     console.error("Get user error:", error);

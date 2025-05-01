@@ -48,12 +48,41 @@ const AddressModal: React.FC<AddressModalProps> = ({
     phoneNumber: "",
     isDefault: false,
   });
+  const [isAddressFetching, setIsAddressFetching] = useState(false);
 
   useEffect(() => {
     if (address && mode === 'edit') {
       setAddressForm(address);
     }
   }, [address, mode]);
+
+  // 郵便番号から住所を取得する関数
+  const fetchAddressByPostalCode = async (postalCode: string) => {
+    // ハイフンを削除し、7桁でない場合は処理しない
+    const cleanedCode = postalCode.replace(/-/g, '');
+    if (cleanedCode.length !== 7) return;
+    
+    setIsAddressFetching(true);
+    try {
+      // 日本郵便の郵便番号検索APIを利用
+      const response = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleanedCode}`);
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        // フォームに取得した住所情報を設定
+        setAddressForm(prevState => ({
+          ...prevState,
+          prefecture: result.address1,
+          city: result.address2 + result.address3,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching address:', error);
+    } finally {
+      setIsAddressFetching(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -87,6 +116,11 @@ const AddressModal: React.FC<AddressModalProps> = ({
       ...addressForm,
       postalCode: formattedValue
     });
+    
+    // 郵便番号が7桁になったら住所を自動取得
+    if (formattedValue.replace(/-/g, '').length === 7) {
+      fetchAddressByPostalCode(formattedValue);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -131,16 +165,26 @@ const AddressModal: React.FC<AddressModalProps> = ({
               <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">
                 郵便番号
               </label>
-              <input
-                type="text"
-                id="postalCode"
-                name="postalCode"
-                value={addressForm.postalCode}
-                onChange={handlePostalCodeChange}
-                placeholder="123-4567"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  id="postalCode"
+                  name="postalCode"
+                  value={addressForm.postalCode}
+                  onChange={handlePostalCodeChange}
+                  placeholder="123-4567"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                />
+                {isAddressFetching && (
+                  <div className="absolute right-3 top-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-orange-500 rounded-full border-t-transparent"></div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                郵便番号を入力すると住所が自動入力されます
+              </p>
             </div>
 
             <div>

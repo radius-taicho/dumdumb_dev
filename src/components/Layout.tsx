@@ -10,7 +10,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="flex flex-col gap-20 container-custom">{children}</main>
+      <main className="flex flex-col gap-20 container-custom pt-[72px]">{children}</main>
       <Footer />
     </div>
   );

@@ -1,9 +1,38 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FiMenu, FiX, FiShoppingCart, FiHeart, FiUser } from "react-icons/fi";
 import { useRouter } from "next/router";
 import { useSession, signOut, signIn } from "next-auth/react";
+
+// シンプルなSwitchコンポーネント
+const SimpleSwitch = ({
+  onChange,
+}: {
+  onChange?: (checked: boolean) => void;
+}) => {
+  const [checked, setChecked] = useState(false);
+
+  const handleChange = () => {
+    setChecked(!checked);
+    if (onChange) onChange(!checked);
+  };
+
+  return (
+    <div
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-gray-600" : "bg-gray-600"
+      }`}
+      onClick={handleChange}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </div>
+  );
+};
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,18 +41,19 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [defaultIconUrl, setDefaultIconUrl] = useState<string | null>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // デフォルトアイコンを取得
   useEffect(() => {
     const fetchDefaultIcon = async () => {
       try {
-        const response = await fetch('/api/user/icons');
+        const response = await fetch("/api/user/icons");
         if (response.ok) {
           const data = await response.json();
           setDefaultIconUrl(data.defaultIconUrl);
         }
       } catch (error) {
-        console.error('Error fetching default icon:', error);
+        console.error("Error fetching default icon:", error);
       }
     };
 
@@ -31,6 +61,23 @@ export default function Header() {
       fetchDefaultIcon();
     }
   }, [status]);
+
+  // ユーザーメニューの外側をクリックしたときにメニューを閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [userMenuRef]);
 
   // ハートボタンクリック時の処理
   const handleFavoritesClick = (e: React.MouseEvent) => {
@@ -70,7 +117,7 @@ export default function Header() {
       return;
     }
   };
-  
+
   // ログインを促すモーダルを閉じる
   const closeLoginPrompt = () => {
     setShowLoginPrompt(false);
@@ -112,10 +159,10 @@ export default function Header() {
     if (session?.user?.image) {
       return (
         <div className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200">
-          <Image 
-            src={session.user.image} 
-            alt="ユーザーアイコン" 
-            fill 
+          <Image
+            src={session.user.image}
+            alt="ユーザーアイコン"
+            fill
             className="object-cover"
           />
         </div>
@@ -123,10 +170,10 @@ export default function Header() {
     } else if (defaultIconUrl) {
       return (
         <div className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200">
-          <Image 
-            src={defaultIconUrl} 
-            alt="デフォルトアイコン" 
-            fill 
+          <Image
+            src={defaultIconUrl}
+            alt="デフォルトアイコン"
+            fill
             className="object-cover"
           />
         </div>
@@ -142,7 +189,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="flex h-[72px] items-center justify-between px-4 py-2 bg-white shadow-sm">
+      <header className="fixed top-0 left-0 right-0 w-full h-[72px] flex items-center justify-between px-6 bg-white shadow-sm z-30">
         {/* 左側：メニューボタン（モバイル）またはナビゲーション（デスクトップ） */}
         <div>
           <button
@@ -160,7 +207,7 @@ export default function Header() {
         {/* 中央：ロゴ */}
         <div className="flex items-center justify-center ">
           <Link href="/" className="relative flex items-center">
-            <h1 className="font-['Modak-Regular',Helvetica] font-bold text-[#1e1e1e] text-4xl sm:text-5xl text-center tracking-[0] leading-normal">
+            <h1 className="font-['Modak-Regular',Helvetica] font-bold text-[#1e1e1e] text-4xl sm:text-4xl text-center tracking-[0] leading-normal">
               dumdumb
             </h1>
             <div className="w-12 h-12 bg-[#d9d9d9] rounded-full" />
@@ -187,7 +234,7 @@ export default function Header() {
           </a>
 
           {status === "authenticated" ? (
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
                 onClick={toggleUserMenu}
@@ -248,7 +295,9 @@ export default function Header() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
             <h3 className="text-xl font-semibold mb-4">ログインが必要です</h3>
-            <p className="mb-6">この機能を利用するにはログインが必要です。ログインしますか？</p>
+            <p className="mb-6">
+              この機能を利用するにはログインが必要です。ログインしますか？
+            </p>
             <div className="flex flex-col space-y-3">
               <button
                 onClick={handleGoToLogin}
@@ -279,56 +328,180 @@ export default function Header() {
         </div>
       )}
 
+      {/* サイドメニュー */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white shadow-md">
-          <nav className="flex flex-col p-4 space-y-4">
-            <Link
-              href="/items"
-              className="text-gray-700 hover:text-gray-900"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              アイテム一覧
-            </Link>
-            <Link
-              href="/categories"
-              className="text-gray-700 hover:text-gray-900"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              カテゴリー
-            </Link>
-            <Link
-              href="/about"
-              className="text-gray-700 hover:text-gray-900"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              About
-            </Link>
-            {status !== "authenticated" ? (
-              <Link
-                href="/auth/login"
-                className="text-gray-700 hover:text-gray-900"
+        <div className="fixed inset-0 z-40 overflow-hidden">
+          {/* 背景のオーバーレイ - クリックで閉じる */}
+          <div
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setIsMenuOpen(false)}
+          ></div>
+
+          {/* サイドメニュー - 画面の1/5の幅 */}
+          <div className="fixed inset-y-0 left-0 w-1/5 max-w-sm min-w-[250px] bg-white shadow-xl overflow-y-auto flex flex-col h-full">
+            {/* メニューヘッダー */}
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="font-bold text-xl text-gray-800">メニュー</h2>
+              <button
                 onClick={() => setIsMenuOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-700"
               >
-                ログイン
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/mypage/account-settings"
-                  className="text-gray-700 hover:text-gray-900"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  アカウント設定
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="text-left text-gray-700 hover:text-gray-900"
-                >
-                  ログアウト
-                </button>
-              </>
-            )}
-          </nav>
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* ナビゲーションリンク */}
+            <nav className="flex-1 p-4">
+              <div className="mb-6">
+                <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider mb-3">
+                  ナビゲーション
+                </h3>
+                <ul className="space-y-3">
+                  <li>
+                    <Link
+                      href="/"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      トップ
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/mypage"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      マイページ
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/character-series"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      キャラクターシリーズ一覧
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/concept"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      サイトコンセプト
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/guide"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      お買い物ガイド
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/sitemap"
+                      className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      サイトマップ
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+
+              {/* 言語設定と画面設定 - 横並び */}
+              <div className="mb-6 flex flex-row justify-between">
+                {/* 言語設定 */}
+                <div className="mr-4">
+                  <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider mb-3">
+                    言語設定
+                  </h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <button className="flex items-center w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150">
+                        <span className="mr-2">🇯🇵</span> 日本語
+                      </button>
+                    </li>
+                    <li>
+                      <button className="flex items-center w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150">
+                        <span className="mr-2">🇰🇷</span> 한국어
+                      </button>
+                    </li>
+                    <li>
+                      <button className="flex items-center w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150">
+                        <span className="mr-2">🇨🇳</span> 中文
+                      </button>
+                    </li>
+                    <li>
+                      <button className="flex items-center w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150">
+                        <span className="mr-2">🇹🇭</span> ภาษาไทย
+                      </button>
+                    </li>
+                    <li>
+                      <button className="flex items-center w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150">
+                        <span className="mr-2">🇬🇧</span> English
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 画面設定 */}
+                <div className="flex flex-col items-start gap-3">
+                  <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider">
+                    画面設定
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <span className="text-base">☀</span>
+                    <SimpleSwitch />
+                    <span className="text-base">🌛</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* アカウント関連 */}
+              <div>
+                <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider mb-3">
+                  アカウント
+                </h3>
+                {status !== "authenticated" ? (
+                  <Link
+                    href="/auth/login"
+                    className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    ログイン
+                  </Link>
+                ) : (
+                  <>
+                    <ul className="space-y-2">
+                      <li>
+                        <Link
+                          href="/mypage/account-settings"
+                          className="block text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          アカウント設定
+                        </Link>
+                      </li>
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 p-2 rounded transition duration-150"
+                        >
+                          ログアウト
+                        </button>
+                      </li>
+                    </ul>
+                  </>
+                )}
+              </div>
+            </nav>
+          </div>
         </div>
       )}
     </>

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from './[...nextauth]';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma-client';
 
 type Data = {
   success: boolean;
@@ -43,17 +43,31 @@ export default async function handler(
     console.log('Anonymous session token:', anonymousSessionToken);
 
     try {
-      // 匿名セッションを取得
+      // 安全なアクセスのための簡略クエリ
       const anonymousSession = await prisma.anonymousSession.findUnique({
         where: { token: anonymousSessionToken },
-        include: {
+        select: {
+          id: true,
           cart: {
-            include: {
-              items: true,
-            },
+            select: {
+              id: true,
+              items: {
+                select: {
+                  id: true,
+                  itemId: true,
+                  quantity: true,
+                  size: true
+                }
+              }
+            }
           },
-          favorites: true,
-        },
+          favorites: {
+            select: {
+              id: true,
+              itemId: true
+            }
+          }
+        }
       });
 
       if (!anonymousSession) {
@@ -115,7 +129,7 @@ export default async function handler(
             }
 
             // 3. 匿名セッションのお気に入りをユーザーのお気に入りにマージ
-            if (anonymousSession.favorites.length > 0) {
+            if (anonymousSession.favorites && anonymousSession.favorites.length > 0) {
               for (const anonymousFavorite of anonymousSession.favorites) {
                 // 同じアイテムがユーザーのお気に入りに既に存在するか確認
                 const existingFavorite = await prismaClient.favorite.findUnique({
@@ -148,7 +162,7 @@ export default async function handler(
             }
 
             // 5. 匿名セッションのお気に入りを削除
-            if (anonymousSession.favorites.length > 0) {
+            if (anonymousSession.favorites && anonymousSession.favorites.length > 0) {
               await prismaClient.anonymousFavorite.deleteMany({
                 where: { anonymousSessionId: anonymousSession.id },
               });

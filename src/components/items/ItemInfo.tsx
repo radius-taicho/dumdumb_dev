@@ -7,7 +7,8 @@ import { useAnonymousSession } from "@/contexts/anonymous-session";
 import SizeSelector from "./SizeSelector";
 import QuantitySelector from "./QuantitySelector";
 import ActionButtons from "./ActionButtons";
-import SizeChart from "./SizeChart"; // 新しいコンポーネントをインポート
+import SizeChart from "./SizeChart";
+import PointInfo from "./PointInfo"; // 新しくインポート
 
 // キャラクターの型定義
 type CharacterData = {
@@ -37,6 +38,8 @@ type ItemData = {
     size: Size;
     inventory: number;
   }[];
+  onSale?: boolean;
+  campaignId?: string | null;
 };
 
 type ItemInfoProps = {
@@ -387,6 +390,13 @@ const ItemInfo: React.FC<ItemInfoProps> = ({ item, onAddToCart, onSizeChange }) 
         <p className="text-xl font-bold text-black">
           ¥{Math.floor(Number(item.price)).toLocaleString()}
         </p>
+        
+        {/* ポイント情報の表示 */}
+        <PointInfo 
+          price={Number(item.price)} 
+          isSale={item.onSale || false} 
+          campaignId={item.campaignId} 
+        />
       </div>
 
       {/* サイズ選択 */}

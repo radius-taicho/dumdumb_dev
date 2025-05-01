@@ -1,3 +1,4 @@
+// This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -46,6 +47,15 @@ model User {
   restockSubscriptions RestockSubscription[] // 再入荷通知登録
   seriesSubscriptions SeriesSubscription[]  // シリーズ通知登録
   viewHistory       ItemViewHistory[] // アイテム視聴履歴
+  points            Point[]           // ポイント
+  coupons           Coupon[]          // クーポン
+  userRequests      UserRequest[]     // ユーザー要望
+   // お問い合わせ関連
+  contacts        Contact[]        @relation("UserContacts")
+  assignedContacts Contact[]       @relation("AssignedContacts")
+  contactResponses ContactResponse[]
+  contactNotes    ContactNote[]
+  notificationSettings UserNotificationSettings?
 }
 
 // NextAuth関連モデル
@@ -168,6 +178,219 @@ model Item {
   favorites   Favorite[]    // 追加: お気に入り関連
   anonymousFavorites AnonymousFavorite[] // 匿名ユーザーのお気に入り
   viewHistory ItemViewHistory[] // 視聴履歴
+  
+  // ポイント関連
+  itemPointRules ItemPointRule[] // アイテム別ポイントルール
+  pointCampaignItems PointCampaignItem[] // ポイントキャンペーン対象アイテム
+  
+  // クーポン関連
+  applicableCoupons CouponTemplateProduct[] // このアイテムに適用可能なクーポン
+  excludedCoupons CouponTemplateExcludedProduct[] // このアイテムを除外するクーポン
+}
+
+// ポイント付与・使用履歴を拡張して追跡元を記録
+model Point {
+  id                      String    @id @default(uuid())
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id])
+  amount                  Int       // ポイント量（正=付与、負=使用）
+  orderId                 String?   // 関連する注文ID（存在する場合）
+  order                   Order?    @relation(fields: [orderId], references: [id])
+  campaignId              String?   // 関連するキャンペーンID（存在する場合）
+  campaign                PointCampaign? @relation(fields: [campaignId], references: [id])
+  type                    String    // "earn", "use", "expire", "adjust"など
+  description             String?   // 説明（管理用）
+  expiresAt               DateTime  // 有効期限
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([campaignId])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+// 基本ポイントルール
+model PointRule {
+  id                      String    @id @default(uuid())
+  defaultRate             Float     // 基本還元率（例：1.0 = 1%）
+  defaultExpiryDays       Int       // デフォルトの有効期限（日数）
+  minPurchaseAmount       Float?    // 最低購入金額（null=制限なし）
+  minPointsToUse          Int?      // 利用可能な最低ポイント数
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// アイテム別ポイントルール
+model ItemPointRule {
+  id                      String    @id @default(uuid())
+  itemId                  String
+  item                    Item      @relation(fields: [itemId], references: [id])
+  pointRate               Float     // このアイテム固有の還元率
+  isActive                Boolean   @default(true)
+  startDate               DateTime? // 開始日（null=無期限）
+  endDate                 DateTime? // 終了日（null=無期限）
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([itemId])
+}
+
+// カテゴリ別ポイントルール
+model CategoryPointRule {
+  id                      String    @id @default(uuid())
+  categoryId              String
+  category                Category  @relation(fields: [categoryId], references: [id])
+  pointRate               Float     // このカテゴリ固有の還元率
+  isActive                Boolean   @default(true)
+  startDate               DateTime? // 開始日（null=無期限）
+  endDate                 DateTime? // 終了日（null=無期限）
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([categoryId])
+}
+
+// ポイントキャンペーン
+model PointCampaign {
+  id                      String    @id @default(uuid())
+  name                    String    // キャンペーン名
+  description             String?   @db.Text
+  multiplier              Float     // ポイント倍率（例：2.0 = 2倍）
+  startDate               DateTime  // キャンペーン開始日
+  endDate                 DateTime  // キャンペーン終了日
+  isActive                Boolean   @default(true)
+  isSpecialEvent          Boolean   @default(false) // 特別イベント（誕生日など）かどうか
+  specialEventType        String?   // イベントタイプ（"birthday", "anniversary"など）
+  targetItems             PointCampaignItem[]
+  targetCategories        PointCampaignCategory[]
+  pointHistory            Point[]   // キャンペーンによるポイント付与履歴
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// キャンペーン対象アイテム（多対多）
+model PointCampaignItem {
+  id                      String        @id @default(uuid())
+  campaignId              String
+  campaign                PointCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  itemId                  String
+  item                    Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, itemId])
+  @@index([campaignId])
+  @@index([itemId])
+}
+
+// キャンペーン対象カテゴリ（多対多）
+model PointCampaignCategory {
+  id                      String        @id @default(uuid())
+  campaignId              String
+  campaign                PointCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  categoryId              String
+  category                Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, categoryId])
+  @@index([campaignId])
+  @@index([categoryId])
+}
+
+model Coupon {
+  id             String   @id @default(cuid())
+  userId         String
+  code           String   @unique
+  discountType   String // 'percentage' or 'fixed'
+  discountValue  Float
+  minimumPurchase Float?
+  expiresAt      DateTime
+  isUsed         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model CouponTemplate {
+  id                  String   @id @default(cuid())
+  name                String   // テンプレート名
+  description         String?  @db.Text
+  discountType        String   // 'percentage' or 'fixed'
+  discountValue       Float
+  minimumPurchase     Float?
+  validDays           Int      // 発行から有効な日数
+  maxUses             Int?     // 最大使用回数（null=無制限）
+  isActive            Boolean  @default(true)
+  createdBy           String   // 作成した管理者ID
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // 中間テーブルを使用した関連
+  applicableProducts  CouponTemplateProduct[]
+  applicableCategories CouponTemplateCategory[]
+  excludedProducts    CouponTemplateExcludedProduct[]
+  excludedCategories  CouponTemplateExcludedCategory[]
+}
+
+// クーポン適用可能アイテムの中間テーブル
+model CouponTemplateProduct {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  productId        String
+  item             Item           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, productId])
+  @@index([couponTemplateId])
+  @@index([productId])
+}
+
+// クーポン適用可能カテゴリの中間テーブル
+model CouponTemplateCategory {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, categoryId])
+  @@index([couponTemplateId])
+  @@index([categoryId])
+}
+
+// クーポン除外アイテムの中間テーブル
+model CouponTemplateExcludedProduct {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  productId        String
+  item             Item           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, productId])
+  @@index([couponTemplateId])
+  @@index([productId])
+}
+
+// クーポン除外カテゴリの中間テーブル
+model CouponTemplateExcludedCategory {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, categoryId])
+  @@index([couponTemplateId])
+  @@index([categoryId])
+}
+
+model CouponUsageHistory {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String
+  orderId   String
+  usedAt    DateTime
+  createdAt DateTime @default(now())
 }
 
 // アイテムとキャラクターの多対多関連付けのための中間テーブル
@@ -211,6 +434,14 @@ model Category {
   media        Media?    @relation(fields: [mediaId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  
+  // ポイント関連
+  categoryPointRules CategoryPointRule[] // カテゴリ別ポイントルール
+  pointCampaignCategories PointCampaignCategory[] // ポイントキャンペーン対象カテゴリ
+  
+  // クーポン関連
+  applicableCoupons CouponTemplateCategory[] // このカテゴリに適用可能なクーポン
+  excludedCoupons CouponTemplateExcludedCategory[] // このカテゴリを除外するクーポン
 }
 
 // キャラクターモデル
@@ -290,6 +521,7 @@ model Order {
   items             OrderItem[]
   address           String
   paymentReferenceId String?    // Stripe PaymentIntent ID または他の支払い参照ID
+  points            Point[]     // ポイント履歴との関連
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 }
@@ -465,6 +697,26 @@ model SeriesSubscription {
   @@index([characterSeriesId])
 }
 
+// ユーザー要望モデル
+model UserRequest {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String        // 'character', 'item', 'service', 'other'
+  title       String
+  description String        @db.Text
+  status      String        @default("pending") // 'pending', 'reviewing', 'completed', 'declined'
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  respondedAt DateTime?    // 回答日時
+  response    String?      @db.Text // 運営からの回答
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // サイト情報モデル
 model SiteInfo {
   id           String    @id @default(uuid())
@@ -500,4 +752,117 @@ model ItemViewHistory {
   @@index([itemId])
   @@index([anonymousSessionId])
   @@index([viewedAt])
+}
+
+// お問い合わせステータスの列挙型
+enum ContactStatus {
+  pending
+  inProgress
+  completed
+  spam
+}
+
+// お問い合わせ優先度の列挙型
+enum ContactPriority {
+  low
+  medium
+  high
+}
+
+// お問い合わせモデル
+model Contact {
+  id              String           @id @default(cuid())
+  name            String
+  email           String
+  category        String
+  subject         String
+  message         String           @db.Text
+  status          ContactStatus    @default(pending)
+  priority        ContactPriority  @default(medium)
+  orderNumber     String?
+  userId          String?
+  assignedToUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // リレーション
+  user            User?            @relation("UserContacts", fields: [userId], references: [id])
+  assignedToUser  User?            @relation("AssignedContacts", fields: [assignedToUserId], references: [id])
+  response        ContactResponse?
+  notes           ContactNote[]
+  attachments     ContactAttachment[] // 添付ファイル
+}
+
+// お問い合わせ添付ファイルモデル
+model ContactAttachment {
+  id              String           @id @default(cuid())
+  contactId       String
+  filename        String           // オリジナルのファイル名
+  path            String           // 保存先パス
+  mimetype        String           // ファイルのMIMEタイプ
+  size            Int              // ファイルサイズ（バイト）
+  createdAt       DateTime         @default(now())
+  
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@index([contactId])
+}
+
+// お問い合わせ返信モデル
+model ContactResponse {
+  id              String           @id @default(cuid())
+  contactId       String           @unique
+  message         String           @db.Text
+  respondedById   String
+  respondedAt     DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  respondedBy     User             @relation(fields: [respondedById], references: [id])
+}
+
+// お問い合わせメモモデル
+model ContactNote {
+  id              String           @id @default(cuid())
+  contactId       String
+  content         String           @db.Text
+  createdById     String
+  createdAt       DateTime         @default(now())
+
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy       User             @relation(fields: [createdById], references: [id])
+}
+
+// 通知設定モデル
+model UserNotificationSettings {
+  id                        String    @id @default(uuid())
+  userId                    String    @unique
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiveAllNotifications   Boolean   @default(true)
+  receiveSiteNotifications  Boolean   @default(true)
+  receiveEmailNotifications Boolean   @default(true)
+  notificationFrequency     String    @default("realtime") // "realtime", "daily", "weekly"
+  
+  // カテゴリ設定
+  seriesNotifications       Boolean   @default(true)
+  characterNotifications    Boolean   @default(true)
+  waitingNotifications      Boolean   @default(true)
+  pointsNotifications       Boolean   @default(true)
+  couponNotifications       Boolean   @default(true)
+  
+  // ポイント通知設定
+  pointsEarnedNotifications    Boolean   @default(true)
+  pointsExpiringNotifications  Boolean   @default(true)
+  pointsExpiryNoticeDays       Int       @default(14)
+  
+  // クーポン通知設定
+  couponIssuedNotifications    Boolean   @default(true)
+  couponExpiringNotifications  Boolean   @default(true)
+  couponExpiryNoticeDays       Int       @default(7)
+  
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 }

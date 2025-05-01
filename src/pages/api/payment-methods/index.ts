@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma-client';
 
 type Data = {
   success: boolean;
@@ -24,7 +24,32 @@ export default async function handler(
   }
 
   try {
-    const { type, cardNumber, cardHolderName, expiryMonth, expiryYear, isDefault, stripePaymentMethodId } = req.body;
+    let { type, cardNumber, cardHolderName, expiryMonth, expiryYear, isDefault, stripePaymentMethodId } = req.body;
+    
+    console.log('受信した支払い方法データ:', { type, isDefault, hasCardInfo: !!cardNumber });
+    
+    // 支払い方法タイプの正規化 - 大文字に統一
+    if (typeof type === 'string') {
+      const upperType = type.toUpperCase();
+      
+      if (upperType === 'CREDIT_CARD') {
+        type = 'CREDIT_CARD';
+      } else if (upperType === 'AMAZON_PAY') {
+        type = 'AMAZON_PAY';
+      } else if (upperType === 'OTHER') {
+        type = 'OTHER';
+      } else {
+        // 不明なタイプの場合はデフォルト値を設定
+        console.warn('不明な支払い方法タイプ:', type);
+        type = 'OTHER';
+      }
+    } else {
+      // typeが文字列でない場合、デフォルト値を設定
+      console.warn('支払い方法タイプが無効です:', type);
+      type = 'OTHER';
+    }
+    
+    console.log('正規化後の支払い方法タイプ:', type);
 
     // 既存のデフォルト支払い方法の処理
     if (isDefault) {
@@ -52,8 +77,17 @@ export default async function handler(
         isDefault,
       },
     });
+    
+    console.log('新しい支払い方法が作成されました:', { id: paymentMethod.id, type: paymentMethod.type });
 
-    return res.status(201).json({ success: true, paymentMethod });
+    return res.status(201).json({ 
+      success: true, 
+      paymentMethod: {
+        ...paymentMethod,
+        // クライアント側での型変換問題を避けるため、型を文字列として明示的に返す
+        type: String(paymentMethod.type)
+      } 
+    });
   } catch (error) {
     console.error('Error adding payment method:', error);
     return res.status(500).json({ success: false, error: 'Internal Server Error' });

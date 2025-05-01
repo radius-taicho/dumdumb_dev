@@ -128,7 +128,7 @@ const SignupPage: NextPage = () => {
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !data.success) {
         throw new Error(data.message || '登録に失敗しました');
       }
 
@@ -153,7 +153,9 @@ const SignupPage: NextPage = () => {
       router.push('/');
     } catch (err) {
       console.error("Registration error:", err);
-      setErrorMessage(err instanceof Error ? err.message : "登録処理中にエラーが発生しました");
+      const errorMsg = err instanceof Error ? err.message : "登録処理中にエラーが発生しました";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg || '登録に失敗しました');
     } finally {
       setIsSubmitting(false);
     }

@@ -3,7 +3,7 @@ import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma-client";
 import { Size } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";

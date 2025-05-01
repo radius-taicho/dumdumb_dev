@@ -26,7 +26,9 @@ export default async function handler(
     });
 
     if (!user || user.role !== "ADMIN") {
-      return res.status(403).json({ message: "この操作には管理者権限が必要です" });
+      return res
+        .status(403)
+        .json({ message: "この操作には管理者権限が必要です" });
     }
 
     const { itemId, size } = req.body;
@@ -40,9 +42,11 @@ export default async function handler(
     const item = await prisma.item.findUnique({
       where: { id: itemId },
       include: {
-        itemSizes: size ? {
-          where: { size },
-        } : true,
+        itemSizes: size
+          ? {
+              where: { size },
+            }
+          : true,
       },
     });
 
@@ -71,12 +75,14 @@ export default async function handler(
           },
         });
 
-        console.log(`サイズ ${itemSize.size} の通知登録ユーザー数: ${subscriptions.length}`);
+        console.log(
+          `サイズ ${itemSize.size} の通知登録ユーザー数: ${subscriptions.length}`
+        );
 
         // 各ユーザーに通知
         for (const subscription of subscriptions) {
           const user = subscription.user;
-          
+
           if (!user.email) continue;
 
           // DBに通知を作成
@@ -84,7 +90,7 @@ export default async function handler(
             data: {
               userId: user.id,
               title: `${item.name} ${itemSize.size}サイズが再入荷しました`,
-              content: `お気に入りに登録していた商品が入荷されました。`,
+              content: `お気に入りに登録していたアイテムが入荷されました。`,
               type: NotificationType.RESTOCK,
               itemId: item.id,
             },
@@ -93,7 +99,9 @@ export default async function handler(
           // メール通知を送信
           if (user.email) {
             try {
-              const itemUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/items/${item.id}`;
+              const itemUrl = `${
+                process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+              }/items/${item.id}`;
               await sendRestockNotificationEmail(
                 user.email,
                 item.name,
@@ -121,7 +129,6 @@ export default async function handler(
       message: `再入荷通知を送信しました（${notifiedCount}人）`,
       notifiedCount,
     });
-
   } catch (error) {
     console.error("再入荷通知送信エラー:", error);
     return res.status(500).json({ message: "サーバーエラーが発生しました" });

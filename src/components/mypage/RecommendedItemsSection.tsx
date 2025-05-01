@@ -50,7 +50,7 @@ export const RecommendedItemsSection: React.FC<
       ) : loading ? (
         <div className="p-8 text-center">
           <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-          <p className="mt-4 text-gray-500">おすすめ商品を読み込み中...</p>
+          <p className="mt-4 text-gray-500">おすすめアイテムを読み込み中...</p>
         </div>
       ) : (
         <div className="p-8 text-center bg-gray-50 rounded">

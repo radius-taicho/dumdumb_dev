@@ -28,6 +28,41 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
   onDelete,
   isProcessing,
 }) => {
+  // 支払い方法の表示を生成する関数
+  const getPaymentMethodDisplay = (paymentMethod: PaymentMethodType) => {
+    // 大文字小文字を区別せずに比較
+    const type = paymentMethod.type?.toUpperCase?.() || '';
+    
+    switch (type) {
+      case "CREDIT_CARD":
+        return (
+          <>
+            <p className="font-medium">クレジットカード</p>
+            <p className="text-sm text-gray-700">
+              {paymentMethod.cardNumber}
+            </p>
+            <p className="text-sm text-gray-700">
+              有効期限: {paymentMethod.expiryMonth}/
+              {paymentMethod.expiryYear}
+            </p>
+          </>
+        );
+      case "AMAZON_PAY":
+        return <p className="font-medium">Amazon Pay</p>;
+      case "OTHER":
+        return (
+          <>
+            <p className="font-medium">その他の支払い方法</p>
+            <p className="text-sm text-gray-700">
+              アイテム到着後にお支払い
+            </p>
+          </>
+        );
+      default:
+        console.log('不明な支払い方法タイプ:', paymentMethod.type);
+        return <p className="font-medium">不明な支払い方法</p>;
+    }
+  };
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
@@ -66,36 +101,14 @@ const PaymentMethodSection: React.FC<PaymentMethodSectionProps> = ({
                     />
                   </div>
                   <div>
-                    {paymentMethod.type === "CREDIT_CARD" ? (
-                      <>
-                        <p className="font-medium">クレジットカード</p>
-                        <p className="text-sm text-gray-700">
-                          {paymentMethod.cardNumber}
-                        </p>
-                        <p className="text-sm text-gray-700">
-                          有効期限: {paymentMethod.expiryMonth}/
-                          {paymentMethod.expiryYear}
-                        </p>
-                      </>
-                    ) : paymentMethod.type === "AmazonPay" ? (
-                      <p className="font-medium">Amazon Pay</p>
-                    ) : paymentMethod.type === "OTHER" ? (
-                      <>
-                        <p className="font-medium">その他の支払い方法</p>
-                        <p className="text-sm text-gray-700">
-                          アイテム到着後にお支払い
-                        </p>
-                      </>
-                    ) : (
-                      <p className="font-medium">不明な支払い方法</p>
-                    )}
+                  {getPaymentMethodDisplay(paymentMethod)}
 
-                    {paymentMethod.isDefault && (
-                      <span className="inline-block mt-1 text-xs bg-gray-200 rounded px-2 py-1">
-                        デフォルト
-                      </span>
-                    )}
-                  </div>
+                  {paymentMethod.isDefault && (
+                    <span className="inline-block mt-1 text-xs bg-gray-200 rounded px-2 py-1">
+                      デフォルト
+                    </span>
+                  )}
+                </div>
                 </div>
                 <div>
                   <button

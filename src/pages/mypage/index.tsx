@@ -41,6 +41,13 @@ const MyPagePage: NextPage = () => {
       <div className="relative overflow-x-hidden">
         {/* メインコンテンツ */}
         <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-72px)]">
+          <div className="flex items-center mb-6">
+            <Link href="/" className="mr-2">
+              <span className="text-gray-500 hover:text-gray-700">
+                &lt; トップに戻る
+              </span>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold mb-8 text-start">マイページ</h1>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">

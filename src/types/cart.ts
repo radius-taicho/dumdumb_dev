@@ -6,7 +6,7 @@ export type CharacterType = {
   name: string;
 };
 
-// 商品基本情報型
+// アイテム基本情報型
 export type ItemBaseType = {
   id: string;
   name: string;

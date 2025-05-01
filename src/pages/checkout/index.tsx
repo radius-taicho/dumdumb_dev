@@ -9,8 +9,9 @@ import { toast } from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../api/auth/[...nextauth]";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma-client";
 import { Size } from "@prisma/client";
+import axios from "axios";
 
 // コンポーネントのインポート
 import AmazonPaySection from "@/components/checkout/AmazonPaySection";
@@ -21,6 +22,8 @@ import CartItemsSection from "@/components/checkout/CartItemsSection";
 import OrderSummary from "@/components/checkout/OrderSummary";
 import AddressModal from "@/components/checkout/AddressModal";
 import PaymentMethodModal from "@/components/checkout/PaymentMethodModal";
+import PointsSection from "@/components/checkout/PointsSection";
+import CouponSection from "@/components/checkout/CouponSection";
 
 // 型定義
 // キャラクターデータ型
@@ -106,6 +109,11 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
     paymentMethod?: string;
   }>({});
 
+  // ポイントとクーポン関連の状態
+  const [pointsToUse, setPointsToUse] = useState<number>(0);
+  const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [appliedCouponId, setAppliedCouponId] = useState<string>("");
+
   // Stripe関連の状態
   const [paymentIntentClientSecret, setPaymentIntentClientSecret] = useState<string | null>(null);
   const [stripePromise, setStripePromise] = useState(() => getStripe());
@@ -140,11 +148,25 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
   const tax = Math.floor(subtotal * 0.1); // 10%の消費税（切り捨て）
   const total = subtotal + shippingFee;
 
+  // 最終的な合計金額（ポイントとクーポン適用後）
+  const finalTotal = Math.max(0, total - pointsToUse - couponDiscount);
+
   // 注文ボタンが有効かどうか確認
   const isOrderButtonEnabled =
     cartItems.length > 0 &&
     selectedAddressId !== "" &&
     selectedPaymentMethodId !== "";
+
+  // ポイント使用の処理
+  const handlePointsUse = (amount: number) => {
+    setPointsToUse(amount);
+  };
+
+  // クーポン適用の処理
+  const handleCouponApply = (discountAmount: number, couponId: string) => {
+    setCouponDiscount(discountAmount);
+    setAppliedCouponId(couponId);
+  };
 
   // Stripe追加認証処理
   const handleStripePaymentConfirmation = async (clientSecret: string) => {
@@ -350,6 +372,8 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
     setValidationErrors({});
 
     try {
+      console.log('送信する支払い方法データ:', paymentData);
+      
       const response = await fetch("/api/payment-methods", {
         method: "POST",
         headers: {
@@ -363,19 +387,43 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         throw new Error(error.error || "支払い方法の追加に失敗しました");
       }
 
-      const newPaymentMethod = await response.json();
+      const result = await response.json();
+      console.log('新しい支払い方法が追加されました:', result);
 
-      // 支払い方法リストを更新
-      const updatedPaymentMethods = paymentData.isDefault
-        ? paymentMethods
-            .map((pm) => ({ ...pm, isDefault: false }))
-            .concat(newPaymentMethod)
-        : [...paymentMethods, newPaymentMethod];
+      // 支払い方法リストを明示的に再取得する
+      const updatedMethodsResponse = await fetch("/api/payment-methods/list");
+      if (updatedMethodsResponse.ok) {
+        const updatedMethodsData = await updatedMethodsResponse.json();
+        console.log('最新の支払い方法一覧:', updatedMethodsData);
+        
+        // 支払い方法リストを更新
+        setPaymentMethods(updatedMethodsData.paymentMethods || []);
+        
+        // 新しい支払い方法があれば自動的に選択
+        if (updatedMethodsData.paymentMethods?.length > 0) {
+          const newMethod = updatedMethodsData.paymentMethods.find(
+            (pm: any) => pm.id === result.paymentMethod?.id
+          );
+          if (newMethod) {
+            setSelectedPaymentMethodId(newMethod.id);
+          }
+        }
+      } else {
+        // APIから最新データが取得できない場合は、通常の方法でUIを更新
+        const newPaymentMethod = result.paymentMethod;
+        
+        // 支払い方法リストを更新
+        const updatedPaymentMethods = paymentData.isDefault
+          ? paymentMethods
+              .map((pm) => ({ ...pm, isDefault: false }))
+              .concat(newPaymentMethod)
+          : [...paymentMethods, newPaymentMethod];
 
-      setPaymentMethods(updatedPaymentMethods);
+        setPaymentMethods(updatedPaymentMethods);
 
-      // 新しい支払い方法を選択状態に
-      setSelectedPaymentMethodId(newPaymentMethod.id);
+        // 新しい支払い方法を選択状態に
+        setSelectedPaymentMethodId(newPaymentMethod.id);
+      }
 
       // モーダルを閉じる
       setShowPaymentMethodModal(false);
@@ -448,56 +496,42 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
         deliveryDate,
         deliveryTimeSlot: selectedTime !== "希望時間帯なし" ? selectedTime : null,
         items: orderItems.length,
+        usedPoints: pointsToUse,
+        appliedCouponId: appliedCouponId || undefined,
         subtotal,
         shippingFee,
         tax,
-        total
+        total,
+        finalTotal
       });
 
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          addressId: selectedAddressId,
-          paymentMethodId: selectedPaymentMethodId,
-          deliveryDate: deliveryDate,
-          deliveryTimeSlot:
-            selectedTime !== "希望時間帯なし" ? selectedTime : null,
-          items: orderItems,
-          subtotal: subtotal,
-          shippingFee: shippingFee,
-          tax: tax,
-          total: total,
-        }),
+      const response = await axios.post("/api/orders", {
+        addressId: selectedAddressId,
+        paymentMethodId: selectedPaymentMethodId,
+        deliveryDate: deliveryDate,
+        deliveryTimeSlot: selectedTime !== "希望時間帯なし" ? selectedTime : null,
+        items: orderItems,
+        usedPoints: pointsToUse,
+        appliedCouponId: appliedCouponId || undefined,
+        subtotal: subtotal,
+        shippingFee: shippingFee,
+        tax: tax,
+        total: total,
       });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(responseData.error || "注文処理中にエラーが発生しました");
-      }
-
-      console.log("注文レスポンス:", responseData);
 
       // 3Dセキュア認証など追加認証が必要な場合の処理
-      if (responseData.requiresAction && responseData.clientSecret) {
+      if (response.data.requiresAction && response.data.clientSecret) {
         toast.info("カード認証を完了してください");
         
         // 追加認証処理を実行
-        const confirmResult = await handleStripePaymentConfirmation(responseData.clientSecret);
+        const confirmResult = await handleStripePaymentConfirmation(response.data.clientSecret);
         
         if (!confirmResult) {
           throw new Error("カード認証に失敗しました");
         }
-
-        // 実行済みの認証成功あるいは追加認証なしの場合は直接サンクスページに遷移
-        router.push(`/checkout/thanks`);
-        toast.success("ご注文ありがとうございます！");
       }
 
-      // 通常の成功処理（追加認証なし）
+      // 購入処理成功
       router.push(`/checkout/thanks`);
       toast.success("ご注文ありがとうございます！");
       
@@ -580,6 +614,18 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
               isProcessing={isProcessing}
             />
 
+            {/* ポイント使用セクション */}
+            <PointsSection
+              totalAmount={total}
+              onPointsUse={handlePointsUse}
+            />
+
+            {/* クーポン適用セクション */}
+            <CouponSection
+              subtotal={subtotal}
+              onCouponApply={handleCouponApply}
+            />
+
             {/* 希望配送日時セクション */}
             <DeliveryDateTimeSection
               selectedDate={selectedDate}
@@ -599,6 +645,9 @@ const CheckoutPage: NextPage<CheckoutPageProps> = ({
               shippingFee={shippingFee}
               tax={tax}
               total={total}
+              pointsDiscount={pointsToUse}
+              couponDiscount={couponDiscount}
+              finalTotal={finalTotal}
               isOrderButtonEnabled={isOrderButtonEnabled}
               isProcessing={isProcessing}
               onPlaceOrder={handlePlaceOrder}

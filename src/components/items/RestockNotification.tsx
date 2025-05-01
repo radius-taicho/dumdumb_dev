@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 type RestockNotificationProps = {
   isVisible?: boolean;
@@ -9,10 +9,10 @@ type RestockNotificationProps = {
   size?: string;
 };
 
-const RestockNotification: React.FC<RestockNotificationProps> = ({ 
-  isVisible = true, 
+const RestockNotification: React.FC<RestockNotificationProps> = ({
+  isVisible = true,
   itemId,
-  size 
+  size,
 }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -26,13 +26,15 @@ const RestockNotification: React.FC<RestockNotificationProps> = ({
       if (!session?.user?.id || !itemId || !size) return;
 
       try {
-        const response = await fetch(`/api/notifications/check-subscription?itemId=${itemId}&size=${size}`);
+        const response = await fetch(
+          `/api/notifications/check-subscription?itemId=${itemId}&size=${size}`
+        );
         if (response.ok) {
           const data = await response.json();
           setIsSubscribed(data.isSubscribed);
         }
       } catch (error) {
-        console.error('登録状態の確認に失敗しました:', error);
+        console.error("登録状態の確認に失敗しました:", error);
       }
     };
 
@@ -41,40 +43,42 @@ const RestockNotification: React.FC<RestockNotificationProps> = ({
 
   const handleSubscribe = async () => {
     if (isLoading) return;
-    
+
     if (!session?.user) {
-      toast.error('通知を受け取るにはログインが必要です');
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
+      toast.error("通知を受け取るにはログインが必要です");
+      router.push(
+        `/auth/login?callbackUrl=${encodeURIComponent(router.asPath)}`
+      );
       return;
     }
 
     if (!itemId || !size) {
-      toast.error('商品情報が正しく設定されていません');
+      toast.error("アイテム情報が正しく設定されていません");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/notifications/restock-subscribe', {
-        method: 'POST',
+      const response = await fetch("/api/notifications/restock-subscribe", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ itemId, size }),
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         setIsSubscribed(data.isSubscribed);
         toast.success(data.message);
       } else {
-        toast.error(data.message || '通知登録に失敗しました');
+        toast.error(data.message || "通知登録に失敗しました");
       }
     } catch (error) {
-      console.error('通知登録エラー:', error);
-      toast.error('通知の登録中にエラーが発生しました');
+      console.error("通知登録エラー:", error);
+      toast.error("通知の登録中にエラーが発生しました");
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +96,7 @@ const RestockNotification: React.FC<RestockNotificationProps> = ({
           disabled={isLoading}
           className={`flex items-center justify-center w-8 h-8 rounded-full ${
             isSubscribed ? "bg-gray-200" : "bg-white border border-gray-300"
-          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
           aria-label={isSubscribed ? "再入荷通知を解除" : "再入荷通知を設定"}
         >
           <svg
@@ -118,12 +122,12 @@ const RestockNotification: React.FC<RestockNotificationProps> = ({
             />
           </svg>
         </button>
-        
+
         {/* ツールチップ */}
         {showTooltip && (
           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap">
-            {isSubscribed 
-              ? "再入荷通知を解除するにはクリック" 
+            {isSubscribed
+              ? "再入荷通知を解除するにはクリック"
               : "再入荷した際に通知を受け取る場合はクリック"}
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
           </div>

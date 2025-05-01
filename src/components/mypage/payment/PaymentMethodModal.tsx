@@ -13,7 +13,9 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
   onSubmit,
   isProcessing,
 }) => {
-  const [paymentType, setPaymentType] = useState<"CREDIT_CARD" | "AMAZON_PAY" | "OTHER">("CREDIT_CARD");
+  const [paymentType, setPaymentType] = useState<
+    "CREDIT_CARD" | "AMAZON_PAY" | "OTHER"
+  >("CREDIT_CARD");
   const [isDefault, setIsDefault] = useState(false);
 
   // クレジットカード完了時のハンドラー
@@ -105,13 +107,23 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
             <div className="space-y-4">
               <div className="p-4 bg-gray-50 rounded-md">
                 <p className="text-sm text-gray-700 mb-2">
-                  Amazon Payを利用すると、Amazonアカウントに登録されている情報を使用して、簡単に支払いができます。
+                  Amazon
+                  Payを利用すると、Amazonアカウントに登録されている情報を使用して、簡単に支払いができます。
                 </p>
                 <div className="flex justify-center">
                   <div className="bg-[#FF9900] text-white py-2 px-4 rounded-md font-semibold inline-flex items-center">
                     <span className="mr-2">Amazon Payで支払う</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -125,7 +137,10 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   onChange={(e) => setIsDefault(e.target.checked)}
                   className="mr-2 accent-orange-500"
                 />
-                <label htmlFor="default-amazon" className="text-sm text-gray-700">
+                <label
+                  htmlFor="default-amazon"
+                  className="text-sm text-gray-700"
+                >
                   デフォルトの支払い方法として設定する
                 </label>
               </div>
@@ -144,7 +159,7 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   disabled={isProcessing}
                   className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 rounded-md"
                 >
-                  {isProcessing ? '処理中...' : '連携して保存'}
+                  {isProcessing ? "処理中..." : "連携して保存"}
                 </button>
               </div>
             </div>
@@ -153,7 +168,7 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
           {paymentType === "OTHER" && (
             <div className="space-y-4">
               <p className="text-sm text-gray-700">
-                代金引換でのお支払いになります。商品到着時に配達員にお支払いください。
+                代金引換でのお支払いになります。アイテム到着時に配達員にお支払いください。
               </p>
 
               <div className="flex items-center">
@@ -164,7 +179,10 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   onChange={(e) => setIsDefault(e.target.checked)}
                   className="mr-2 accent-orange-500"
                 />
-                <label htmlFor="default-other" className="text-sm text-gray-700">
+                <label
+                  htmlFor="default-other"
+                  className="text-sm text-gray-700"
+                >
                   デフォルトの支払い方法として設定する
                 </label>
               </div>
@@ -183,7 +201,7 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   disabled={isProcessing}
                   className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 rounded-md"
                 >
-                  {isProcessing ? '処理中...' : '保存'}
+                  {isProcessing ? "処理中..." : "保存"}
                 </button>
               </div>
             </div>

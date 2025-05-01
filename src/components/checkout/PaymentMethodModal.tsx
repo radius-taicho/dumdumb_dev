@@ -21,7 +21,12 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
 
   // クレジットカード完了時のハンドラー
   const handleCreditCardComplete = (paymentMethodData: any) => {
-    onSubmit(paymentMethodData);
+    // タイプを確実に大文字にして部品一貫性を維持
+    const normalizedData = {
+      ...paymentMethodData,
+      type: 'CREDIT_CARD'
+    };
+    onSubmit(normalizedData);
   };
 
   return (
@@ -109,7 +114,7 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
                   type="button"
                   onClick={() => {
                     onSubmit({
-                      type: "OTHER",
+                      type: 'OTHER', // 大文字で統一
                       isDefault,
                     });
                   }}

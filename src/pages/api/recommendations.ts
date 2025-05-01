@@ -1,9 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/prisma';
+import { NextApiRequest, NextApiResponse } from "next";
+import { prisma } from "@/lib/prisma";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
   try {
@@ -41,19 +44,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         },
         orderBy: {
-          createdAt: 'desc', // 新しい商品優先
+          createdAt: "desc", // 新しいアイテム優先
         },
         take: 3,
       });
 
       // レスポンス用にフォーマット
       recommendedItems.push(
-        ...characterBasedItems.map(item => ({
+        ...characterBasedItems.map((item) => ({
           id: item.id,
           name: item.name,
           price: Number(item.price),
           images: item.images,
-          characters: item.characters.map(ic => ({
+          characters: item.characters.map((ic) => ({
             id: ic.character.id,
             name: ic.character.name,
           })),
@@ -61,13 +64,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
     }
 
-    // 2. 人気商品（購入回数が多い）のレコメンド (足りない分を補充)
+    // 2. 人気アイテム（購入回数が多い）のレコメンド (足りない分を補充)
     if (recommendedItems.length < 5) {
       const popularItems = await prisma.item.findMany({
         where: {
           // すでにカートやお気に入り、またはレコメンド済みのアイテムは除外
           id: {
-            notIn: [...(itemIds || []), ...recommendedItems.map(item => item.id)],
+            notIn: [
+              ...(itemIds || []),
+              ...recommendedItems.map((item) => item.id),
+            ],
           },
           // 在庫が1以上のアイテムのみ
           inventory: {
@@ -84,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: {
           orderItems: {
-            _count: 'desc', // 注文数順（人気順）
+            _count: "desc", // 注文数順（人気順）
           },
         },
         take: 5 - recommendedItems.length,
@@ -92,12 +98,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // レスポンス用にフォーマット
       recommendedItems.push(
-        ...popularItems.map(item => ({
+        ...popularItems.map((item) => ({
           id: item.id,
           name: item.name,
           price: Number(item.price),
           images: item.images,
-          characters: item.characters.map(ic => ({
+          characters: item.characters.map((ic) => ({
             id: ic.character.id,
             name: ic.character.name,
           })),
@@ -111,7 +117,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: {
           // すでにカートやお気に入り、またはレコメンド済みのアイテムは除外
           id: {
-            notIn: [...(itemIds || []), ...recommendedItems.map(item => item.id)],
+            notIn: [
+              ...(itemIds || []),
+              ...recommendedItems.map((item) => item.id),
+            ],
           },
           // 在庫が1以上のアイテムのみ
           inventory: {
@@ -126,19 +135,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         },
         orderBy: {
-          createdAt: 'desc', // 新着順
+          createdAt: "desc", // 新着順
         },
         take: 5 - recommendedItems.length,
       });
 
       // レスポンス用にフォーマット
       recommendedItems.push(
-        ...randomItems.map(item => ({
+        ...randomItems.map((item) => ({
           id: item.id,
           name: item.name,
           price: Number(item.price),
           images: item.images,
-          characters: item.characters.map(ic => ({
+          characters: item.characters.map((ic) => ({
             id: ic.character.id,
             name: ic.character.name,
           })),
@@ -149,7 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // BigInt型をJSON化するために文字列に変換
     const serializedItems = JSON.parse(
       JSON.stringify(recommendedItems, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
+        typeof value === "bigint" ? value.toString() : value
       )
     );
 
@@ -157,7 +166,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       recommendedItems: serializedItems,
     });
   } catch (error) {
-    console.error('Error fetching recommendations:', error);
-    return res.status(500).json({ message: 'レコメンド商品の取得中にエラーが発生しました' });
+    console.error("Error fetching recommendations:", error);
+    return res
+      .status(500)
+      .json({ message: "レコメンドアイテムの取得中にエラーが発生しました" });
   }
 }

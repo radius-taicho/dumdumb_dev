@@ -20,7 +20,7 @@ export const RecommendedItems: React.FC<RecommendedItemsProps> = ({
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // カートとお気に入りの商品に基づいてレコメンド商品を取得
+  // カートとお気に入りのアイテムに基づいてレコメンドアイテムを取得
   useEffect(() => {
     const fetchRecommendedItems = async () => {
       setIsLoading(true);
@@ -45,7 +45,7 @@ export const RecommendedItems: React.FC<RecommendedItemsProps> = ({
           });
         });
 
-        // APIを呼び出してレコメンド商品を取得
+        // APIを呼び出してレコメンドアイテムを取得
         const response = await fetch("/api/recommendations", {
           method: "POST",
           headers: {

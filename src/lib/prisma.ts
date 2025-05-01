@@ -1,15 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 
-// PrismaClientをグローバルに拡張する
+// PrismaClientのインスタンスをグローバルに保存するための宣言
 declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// 開発環境ではホットリロードでPrismaClientのインスタンスを複数生成することを防ぐ
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
-    log: ['query', 'error', 'warn'],
-  });
+// 開発環境では同じPrismaClientインスタンスを再利用し、本番環境では新しいインスタンスを作成
+const prisma = global.prisma || new PrismaClient();
 
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
+if (process.env.NODE_ENV === 'development') {
+  global.prisma = prisma;
+}
+
+export { prisma };
+export default prisma;

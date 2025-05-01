@@ -1,6 +1,6 @@
-import React from 'react';
-import { Size } from '@prisma/client';
-import SizeOption from './SizeOption';
+import React from "react";
+import { Size } from "@prisma/client";
+import SizeOption from "./SizeOption";
 
 type SizeSelectorProps = {
   onSizeSelect: (size: Size | null) => void;
@@ -10,19 +10,25 @@ type SizeSelectorProps = {
   gender?: string | null; // 性別情報を追加
 };
 
-const SizeSelector: React.FC<SizeSelectorProps> = ({ 
-  onSizeSelect, 
-  selectedSize, 
-  hasSizes, 
+const SizeSelector: React.FC<SizeSelectorProps> = ({
+  onSizeSelect,
+  selectedSize,
+  hasSizes,
   itemSizes,
-  gender
+  gender,
 }) => {
   // KIDS用サイズと通常サイズを分ける
   const adultSizes: Size[] = ["S", "M", "L", "XL", "XXL"];
-  const kidsSizes: Size[] = ["KID_100", "KID_110", "KID_120", "KID_130", "KID_140"];
-  
-  // 商品のジェンダーに基づいて適切なサイズリストを選択
-  const sizes = gender === 'KIDS' ? kidsSizes : adultSizes;
+  const kidsSizes: Size[] = [
+    "KID_100",
+    "KID_110",
+    "KID_120",
+    "KID_130",
+    "KID_140",
+  ];
+
+  // アイテムのジェンダーに基づいて適切なサイズリストを選択
+  const sizes = gender === "KIDS" ? kidsSizes : adultSizes;
 
   // サイズの在庫状況を取得
   const getInventory = (size: Size): number => {
@@ -33,8 +39,8 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
 
   // サイズの表示名を取得（キッズサイズの場合は "KID_" プレフィックスを削除）
   const getSizeDisplayName = (size: Size): string => {
-    return size.toString().startsWith('KID_') 
-      ? size.toString().replace('KID_', '') 
+    return size.toString().startsWith("KID_")
+      ? size.toString().replace("KID_", "")
       : size.toString();
   };
 

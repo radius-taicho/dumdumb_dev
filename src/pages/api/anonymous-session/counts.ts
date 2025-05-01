@@ -1,102 +1,64 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/prisma';
-
-type Data = {
-  success: boolean;
-  message?: string;
-  cartCount?: number;
-  favoritesCount?: number;
-};
+import { prisma } from '@/lib/prisma-client';
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse
 ) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
-  }
+  // 安全な基本レスポンス
+  const safeResponse = {
+    success: true,
+    cartCount: 0,
+    favoritesCount: 0
+  };
 
   try {
     const { token } = req.query;
-
-    // トークンがない場合や無効な場合でも、エラーではなく0カウントを返す
-    if (!token || typeof token !== 'string' || token === 'null') {
-      console.log('Invalid or null token provided to counts API:', token);
-      return res.status(200).json({ 
-        success: true, 
-        cartCount: 0,
-        favoritesCount: 0,
-        message: 'Default counts returned for invalid token'
-      });
+    
+    if (!token || typeof token !== 'string') {
+      return res.status(200).json(safeResponse);
     }
-
-    // 匿名セッションを取得
+    
     try {
-      const anonymousSession = await prisma.anonymousSession.findUnique({
-        where: { token },
-        include: {
-          cart: {
-            include: {
-              items: true,
-            },
-          },
-          favorites: true,
-        },
+      // 単純なクエリだけを実行
+      const favorites = await prisma.anonymousFavorite.count({
+        where: {
+          anonymousSession: {
+            token
+          }
+        }
       });
-
-      if (!anonymousSession) {
-        console.log('Anonymous session not found for token:', token);
-        return res.status(200).json({ 
-          success: true, 
-          cartCount: 0,
-          favoritesCount: 0,
-          message: 'No session found'
-        });
-      }
-
-      // 期限切れかどうかを確認
-      const now = new Date();
-      if (anonymousSession.expires < now) {
-        console.log('Anonymous session has expired for token:', token);
-        return res.status(200).json({ 
-          success: true, 
-          cartCount: 0,
-          favoritesCount: 0,
-          message: 'Session expired'
-        });
-      }
-
-      // カウントを計算
-      const cartCount = anonymousSession.cart?.items.reduce(
-        (total, item) => total + item.quantity,
-        0
-      ) || 0;
       
-      const favoritesCount = anonymousSession.favorites.length;
-
+      // カート数を安全に取得
+      let cartCount = 0;
+      try {
+        const cartItems = await prisma.cartItem.findMany({
+          where: {
+            cart: {
+              anonymousSession: {
+                token
+              }
+            }
+          },
+          select: { quantity: true }
+        });
+        
+        cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      } catch (cartError) {
+        console.error('Cart count error:', cartError);
+      }
+      
       return res.status(200).json({
         success: true,
         cartCount,
-        favoritesCount,
+        favoritesCount: favorites
       });
     } catch (dbError) {
-      console.error('Database error in counts API:', dbError);
-      // データベースエラーの場合も0カウントを返す
-      return res.status(200).json({ 
-        success: true, 
-        cartCount: 0,
-        favoritesCount: 0,
-        message: 'Error fetching counts'
-      });
+      console.error('Database error:', dbError);
+      return res.status(200).json(safeResponse);
     }
   } catch (error) {
-    console.error('Error fetching anonymous session counts:', error);
-    // エラー時も正常レスポンスを返して、クライアント側のエラーを防ぐ
-    return res.status(200).json({ 
-      success: true, 
-      cartCount: 0,
-      favoritesCount: 0,
-      message: 'Error processing request'
-    });
+    console.error('Error:', error);
+    return res.status(200).json(safeResponse);
   }
 }
