@@ -190,102 +190,208 @@ export default function Header() {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 w-full h-[72px] flex items-center justify-between px-6 bg-white shadow-sm z-30">
-        {/* 左側：メニューボタン（モバイル）またはナビゲーション（デスクトップ） */}
-        <div>
-          <button
-            className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? (
-              <FiX className="w-8 h-8" />
-            ) : (
-              <FiMenu className="w-8 h-8" />
-            )}
-          </button>
-        </div>
-
-        {/* 中央：ロゴ */}
-        <div className="flex items-center justify-center ">
-          <Link href="/" className="relative flex items-center">
-            <h1 className="font-['Modak-Regular',Helvetica] font-bold text-[#1e1e1e] text-4xl sm:text-4xl text-center tracking-[0] leading-normal">
-              dumdumb
-            </h1>
-            <div className="w-12 h-12 bg-[#d9d9d9] rounded-full" />
-            {/* 画像がある場合は以下のコメントを外してください */}
-            {/* <img className="w-12 h-12 sm:w-16 sm:h-16 ml-2" alt="Dumdumb" src="/images/logo.png" /> */}
-          </Link>
-        </div>
-
-        {/* 右側：アイコンとログイン/ユーザーアイコン */}
-        <div className="flex items-center gap-4 sm:gap-8">
-          <a
-            href="/cartAndFavorites"
-            className="p-2 text-gray-700 hover:text-gray-900 relative"
-            onClick={handleFavoritesClick}
-          >
-            <FiHeart className="w-6 h-6" />
-          </a>
-          <a
-            href="/cartAndFavorites"
-            className="p-2 text-gray-700 hover:text-gray-900 relative"
-            onClick={handleCartClick}
-          >
-            <FiShoppingCart className="w-6 h-6" />
-          </a>
-
-          {status === "authenticated" ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
-                onClick={toggleUserMenu}
-              >
-                <UserAvatar />
-              </button>
-
-              {/* ユーザーメニュードロップダウン */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                  <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                    {session?.user?.email}
-                  </div>
-                  <Link
-                    href="/mypage"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    マイページ
-                  </Link>
-                  <Link
-                    href="/mypage/orders"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    お買い物履歴
-                  </Link>
-                  <Link
-                    href="/mypage/account-settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    アカウント設定
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    ログアウト
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link
-              href="/auth/login"
-              className="hidden md:block text-gray-700 hover:text-gray-900"
-            >
-              ログイン
+        {/* スマホレイアウト（~md未満） */}
+        <div className="flex md:hidden w-full justify-between items-center">
+          {/* 左側：ロゴ */}
+          <div className="flex items-center">
+            <Link href="/" className="relative flex items-center">
+              <Image
+                src="/images/logo_sp.svg"
+                alt="dumdumb shop"
+                width={80}
+                height={80}
+                className="h-12 w-auto"
+                priority
+              />
             </Link>
-          )}
+          </div>
+
+          {/* 右側：アイコン + ハンバーガーメニュー */}
+          <div className="flex items-center gap-4">
+            <a
+              href="/cartAndFavorites"
+              className="p-2 text-gray-700 hover:text-gray-900 relative"
+              onClick={handleFavoritesClick}
+            >
+              <FiHeart className="w-6 h-6" />
+            </a>
+            <a
+              href="/cartAndFavorites"
+              className="p-2 text-gray-700 hover:text-gray-900 relative"
+              onClick={handleCartClick}
+            >
+              <FiShoppingCart className="w-6 h-6" />
+            </a>
+
+            {status === "authenticated" ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
+                  onClick={toggleUserMenu}
+                >
+                  <UserAvatar />
+                </button>
+
+                {/* ユーザーメニュードロップダウン */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                      {session?.user?.email}
+                    </div>
+                    <Link
+                      href="/mypage"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      マイページ
+                    </Link>
+                    <Link
+                      href="/mypage/orders"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      お買い物履歴
+                    </Link>
+                    <Link
+                      href="/mypage/account-settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      アカウント設定
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      ログアウト
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-gray-700 hover:text-gray-900 text-sm px-2 whitespace-nowrap"
+              >
+                ログイン
+              </Link>
+            )}
+
+            {/* ハンバーガーメニューボタン */}
+            <button
+              className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <FiX className="w-8 h-8" />
+              ) : (
+                <FiMenu className="w-8 h-8" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* タブレット・デスクトップレイアウト（md以上） */}
+        <div className="hidden md:flex w-full items-center">
+          {/* 左側：ハンバーガーメニュー - 固定幅 */}
+          <div className="w-48 flex justify-start">
+            <button
+              className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <FiX className="w-8 h-8" />
+              ) : (
+                <FiMenu className="w-8 h-8" />
+              )}
+            </button>
+          </div>
+
+          {/* 中央：ロゴ - 伸縮可能 */}
+          <div className="flex-1 flex justify-center">
+            <Link href="/" className="relative flex items-center">
+              <Image
+                src="/images/logo_dumdumb.svg"
+                alt="dumdumb shop"
+                width={240}
+                height={72}
+                className="h-12 lg:h-16 w-auto"
+                priority
+              />
+            </Link>
+          </div>
+
+          {/* 右側：アイコン - 固定幅 */}
+          <div className="w-48 flex items-center gap-8 justify-end">
+            <a
+              href="/cartAndFavorites"
+              className="p-2 text-gray-700 hover:text-gray-900 relative"
+              onClick={handleFavoritesClick}
+            >
+              <FiHeart className="w-6 h-6" />
+            </a>
+            <a
+              href="/cartAndFavorites"
+              className="p-2 text-gray-700 hover:text-gray-900 relative"
+              onClick={handleCartClick}
+            >
+              <FiShoppingCart className="w-6 h-6" />
+            </a>
+
+            {status === "authenticated" ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  className="p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
+                  onClick={toggleUserMenu}
+                >
+                  <UserAvatar />
+                </button>
+
+                {/* ユーザーメニュードロップダウン */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                      {session?.user?.email}
+                    </div>
+                    <Link
+                      href="/mypage"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      マイページ
+                    </Link>
+                    <Link
+                      href="/mypage/orders"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      お買い物履歴
+                    </Link>
+                    <Link
+                      href="/mypage/account-settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      アカウント設定
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      ログアウト
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-gray-700 hover:text-gray-900 whitespace-nowrap"
+              >
+                ログイン
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -354,7 +460,7 @@ export default function Header() {
             <nav className="flex-1 p-4">
               <div className="mb-6">
                 <h3 className="font-medium text-sm text-gray-500 uppercase tracking-wider mb-3">
-                  ナビゲーション
+                  サイトナビ
                 </h3>
                 <ul className="space-y-3">
                   <li>

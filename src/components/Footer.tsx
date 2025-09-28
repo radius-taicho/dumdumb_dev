@@ -1,6 +1,7 @@
 import { FiTwitter, FiInstagram } from "react-icons/fi";
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 // シンプルなSwitchコンポーネント
 const SimpleSwitch = ({
@@ -75,10 +76,16 @@ export default function Footer(): JSX.Element {
           {/* Logo and Social Media */}
           <div className="flex w-full items-start justify-between mb-8">
             <div className="relative">
-              <div className="flex items-center font-['Modak-Regular',Helvetica] font-normal text-4xl md:text-5xl text-center tracking-[0] leading-normal text-gray-900">
-                dumdumb
-                <div className="w-12 h-12 bg-[#d9d9d9] rounded-full" />
-              </div>
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/images/logo_dumdumb.svg"
+                  alt="dumdumb shop"
+                  width={280}
+                  height={84}
+                  className="h-14 w-auto"
+                  priority
+                />
+              </Link>
             </div>
 
             <div className="flex items-center gap-4">
@@ -87,12 +94,6 @@ export default function Footer(): JSX.Element {
               </Link>
               <Link href="https://instagram.com" className="hover:opacity-80">
                 <FiInstagram className="w-8 h-8 text-gray-700" />
-              </Link>
-              <Link
-                href="https://line.me"
-                className="relative w-8 h-8 bg-gray-700 rounded-md flex items-center justify-center hover:opacity-80"
-              >
-                <span className="text-white text-xl font-bold">L</span>
               </Link>
             </div>
           </div>

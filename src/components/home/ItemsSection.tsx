@@ -148,7 +148,7 @@ const ItemsSection: React.FC<ItemsSectionProps> = ({
           filteredItems.map((item) => (
             <div key={item.id} className="relative group">
               <Link href={`/items/${item.id}`}>
-                <div className="aspect-[4/5] bg-gray-100 mb-3 relative overflow-hidden">
+                <div className="aspect-[4/5] bg-gray-100 mb-3 relative overflow-hidden rounded-lg">
                   {/* アイテム画像 */}
                   <img
                     src={getImageUrl(item.images)}
