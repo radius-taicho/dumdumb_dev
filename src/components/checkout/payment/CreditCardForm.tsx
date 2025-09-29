@@ -66,7 +66,8 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({
       
       // 親コンポーネントに必要な情報を渡す
       onComplete({
-        type: 'CREDIT_CARD',
+        // 必ず大文字で統一する
+        type: 'CREDIT_CARD', 
         cardNumber: `**** **** **** ${card?.last4}`,
         cardHolderName,
         expiryMonth: card?.exp_month.toString().padStart(2, '0'),
@@ -75,6 +76,8 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({
         isDefault,
         stripePaymentMethodId: paymentMethod.id,
       });
+      
+      console.log('クレジットカード情報が正常に登録されました - タイプ: CREDIT_CARD');
       
       toast.success('クレジットカード情報が正常に登録されました');
     } catch (err) {

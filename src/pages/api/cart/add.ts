@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
 import { prisma } from "@/lib/prisma";
 import { Size } from "@prisma/client";
 
@@ -25,11 +27,17 @@ export default async function handler(
       console.log('カート追加APIリクエスト:', req.body);
     }
     
-    const { userId, itemId, quantity, size } = req.body;
+    // 認証確認
+    const session = await getServerSession(req, res, authOptions);
+    if (!session || !session.user) {
+      return res.status(401).json({ success: false, message: "Not authenticated" });
+    }
+
+    const userId = session.user.id;
+    const { itemId, quantity, size } = req.body;
 
     // 必須フィールドの検証を詳細に行う
     const missingFields = [];
-    if (!userId) missingFields.push('userId');
     if (!itemId) missingFields.push('itemId');
     if (!quantity) missingFields.push('quantity');
     

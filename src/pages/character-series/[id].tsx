@@ -77,7 +77,7 @@ const CharacterSeriesPage: NextPage<CharacterSeriesPageProps> = ({
         <title>{series.name} | dumdumb</title>
         <meta
           name="description"
-          content={`dumdumbで扱っている${series.name}シリーズの商品一覧`}
+          content={`dumdumbで扱っている${series.name}シリーズのアイテム一覧`}
         />
       </Head>
 
@@ -154,7 +154,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     });
 
-    const characterIds = characters.map(char => char.id);
+    const characterIds = characters.map((char) => char.id);
 
     // これらのキャラクターを含むアイテムを取得
     const items = await prisma.item.findMany({
@@ -168,7 +168,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -178,7 +178,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         isActive: true,
       },
       orderBy: {
-        displayOrder: 'asc',
+        displayOrder: "asc",
       },
       include: {
         media: {

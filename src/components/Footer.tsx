@@ -1,6 +1,7 @@
 import { FiTwitter, FiInstagram } from "react-icons/fi";
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 // シンプルなSwitchコンポーネント
 const SimpleSwitch = ({
@@ -18,7 +19,7 @@ const SimpleSwitch = ({
   return (
     <div
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? "bg-gray-700" : "bg-gray-700"
+        checked ? "bg-gray-600" : "bg-gray-600"
       }`}
       onClick={handleChange}
     >
@@ -61,37 +62,38 @@ export default function Footer(): JSX.Element {
   // Language options
   const languages = [
     { name: "日本語", flag: "🇯🇵" },
-    { name: "韓国語", flag: "🇰🇷" },
-    { name: "中国語", flag: "🇨🇳" },
+    { name: "한국어", flag: "🇰🇷" },
+    { name: "中文", flag: "🇨🇳" },
+    { name: "ภาษาไทย", flag: "🇹🇭" },
     { name: "English", flag: "🇬🇧" },
   ];
 
   return (
-    <footer className="flex flex-col w-full items-center justify-center px-4 md:px-12 py-10 bg-[#1e1e1e] text-white">
+    <footer className="flex flex-col w-full items-center justify-center px-4 md:px-12 py-10 bg-white text-gray-800 shadow-md">
       <div className="flex flex-col md:flex-row w-full max-w-[1280px] items-start justify-between gap-10">
         {/* Left Column */}
         <div className="flex flex-col w-full md:max-w-[592px] items-start">
           {/* Logo and Social Media */}
           <div className="flex w-full items-start justify-between mb-8">
             <div className="relative">
-              <div className="flex items-center font-['Modak-Regular',Helvetica] font-normal text-4xl md:text-5xl text-center tracking-[0] leading-normal">
-                dumdumb
-                <div className="w-12 h-12 bg-[#d9d9d9] rounded-full" />
-              </div>
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/images/logo_dumdumb.svg"
+                  alt="dumdumb shop"
+                  width={280}
+                  height={84}
+                  className="h-14 w-auto"
+                  priority
+                />
+              </Link>
             </div>
 
             <div className="flex items-center gap-4">
               <Link href="https://twitter.com" className="hover:opacity-80">
-                <FiTwitter className="w-6 h-6 text-white" />
+                <FiTwitter className="w-6 h-6 text-gray-700" />
               </Link>
               <Link href="https://instagram.com" className="hover:opacity-80">
-                <FiInstagram className="w-8 h-8 text-white" />
-              </Link>
-              <Link
-                href="https://line.me"
-                className="relative w-8 h-8 bg-white rounded-md flex items-center justify-center hover:opacity-80"
-              >
-                <span className="text-[#1e1e1e] text-xl font-bold">L</span>
+                <FiInstagram className="w-8 h-8 text-gray-700" />
               </Link>
             </div>
           </div>
@@ -151,7 +153,7 @@ export default function Footer(): JSX.Element {
       </div>
 
       {/* Footer Bottom */}
-      <div className="flex flex-col md:flex-row w-full max-w-[1280px] justify-between items-start md:items-end border-t border-gray-700 mt-12 pt-8">
+      <div className="flex flex-col md:flex-row w-full max-w-[1280px] justify-between items-start md:items-end border-t border-gray-200 mt-12 pt-8">
         {/* Language and Theme Settings */}
         <div className="flex flex-col sm:flex-row gap-8 sm:gap-[88px] mb-8 md:mb-0">
           {/* Language Selection */}
@@ -183,7 +185,7 @@ export default function Footer(): JSX.Element {
 
         {/* Copyright */}
         <div className="flex items-end justify-center md:justify-end w-full md:w-auto">
-          <p className="font-['Modak-Regular',Helvetica] font-normal text-sm">
+          <p className="font-['Modak-Regular',Helvetica] font-normal text-sm text-gray-700">
             © 2025 dumdumb inc. All rights reserved.
           </p>
         </div>

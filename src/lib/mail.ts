@@ -1,14 +1,14 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 // メール送信用のトランスポーター設定
 // 本番環境では実際のSMTPサーバー情報を使用
 export const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_SECURE === "true",
   auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
   },
 });
 
@@ -16,11 +16,11 @@ export const transporter = nodemailer.createTransport({
 export const sendMail = async (to: string, subject: string, html: string) => {
   try {
     // 開発環境では実際にメールを送信せず、コンソールに出力
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Sending email in development mode');
-      console.log('To:', to);
-      console.log('Subject:', subject);
-      console.log('Content:', html);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Sending email in development mode");
+      console.log("To:", to);
+      console.log("Subject:", subject);
+      console.log("Content:", html);
       return true;
     }
 
@@ -32,10 +32,10 @@ export const sendMail = async (to: string, subject: string, html: string) => {
       html,
     });
 
-    console.log('Message sent: %s', info.messageId);
+    console.log("Message sent: %s", info.messageId);
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error("Email sending error:", error);
     return false;
   }
 };
@@ -67,16 +67,30 @@ export const getPasswordResetEmailTemplate = (resetUrl: string) => {
 
 // 注文確認メールのテンプレート
 export const getOrderConfirmationEmailTemplate = (order: any, user: any) => {
-  // 商品リストの生成
-  const itemsHtml = order.items.map((item: any) => `
+  // アイテムリストの生成
+  const itemsHtml = order.items
+    .map(
+      (item: any) => `
     <tr>
-      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.item?.name || '商品名なし'}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.size || '-'}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${Number(item.price).toLocaleString()}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${(Number(item.price) * item.quantity).toLocaleString()}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+        item.item?.name || "アイテム名なし"
+      }</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${
+        item.size || "-"
+      }</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${Number(
+        item.price
+      ).toLocaleString()}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${
+        item.quantity
+      }</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">&#165;${(
+        Number(item.price) * item.quantity
+      ).toLocaleString()}</td>
     </tr>
-  `).join('');
+  `
+    )
+    .join("");
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -86,7 +100,9 @@ export const getOrderConfirmationEmailTemplate = (order: any, user: any) => {
       
       <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
         <p><strong>注文番号:</strong> ${order.id}</p>
-        <p><strong>注文日時:</strong> ${new Date(order.createdAt).toLocaleString('ja-JP')}</p>
+        <p><strong>注文日時:</strong> ${new Date(
+          order.createdAt
+        ).toLocaleString("ja-JP")}</p>
       </div>
       
       <h3 style="border-bottom: 2px solid #f97316; padding-bottom: 10px;">注文内容</h3>
@@ -94,7 +110,7 @@ export const getOrderConfirmationEmailTemplate = (order: any, user: any) => {
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
           <tr style="background-color: #f5f5f5;">
-            <th style="padding: 10px; text-align: left;">商品名</th>
+            <th style="padding: 10px; text-align: left;">アイテム名</th>
             <th style="padding: 10px; text-align: center;">サイズ</th>
             <th style="padding: 10px; text-align: right;">価格</th>
             <th style="padding: 10px; text-align: center;">数量</th>
@@ -110,15 +126,21 @@ export const getOrderConfirmationEmailTemplate = (order: any, user: any) => {
         <table style="width: 100%;">
           <tr>
             <td style="padding: 5px;">小計</td>
-            <td style="padding: 5px; text-align: right;">&#165;${Number(order.subtotal).toLocaleString()}</td>
+            <td style="padding: 5px; text-align: right;">&#165;${Number(
+              order.subtotal
+            ).toLocaleString()}</td>
           </tr>
           <tr>
             <td style="padding: 5px;">送料</td>
-            <td style="padding: 5px; text-align: right;">&#165;${Number(order.shippingFee || 0).toLocaleString()}</td>
+            <td style="padding: 5px; text-align: right;">&#165;${Number(
+              order.shippingFee || 0
+            ).toLocaleString()}</td>
           </tr>
           <tr>
             <td style="padding: 5px;"><strong>合計</strong></td>
-            <td style="padding: 5px; text-align: right;"><strong>&#165;${Number(order.totalAmount).toLocaleString()}</strong></td>
+            <td style="padding: 5px; text-align: right;"><strong>&#165;${Number(
+              order.totalAmount
+            ).toLocaleString()}</strong></td>
           </tr>
         </table>
       </div>

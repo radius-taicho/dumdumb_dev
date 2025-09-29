@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FiBell } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
 import Link from "next/link";
 
 type SeriesHeaderProps = {
@@ -25,10 +27,70 @@ type SeriesHeaderProps = {
 };
 
 const SeriesHeader: React.FC<SeriesHeaderProps> = ({ series }) => {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 初期状態を取得
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (!session?.user?.id || !series.id) return;
+
+      try {
+        const response = await fetch(`/api/notifications/check-subscription?seriesId=${series.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setIsSubscribed(data.isSubscribed);
+        }
+      } catch (error) {
+        console.error('シリーズ通知登録状態の確認に失敗しました:', error);
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, [session, series.id]);
+
   // 通知登録ボタンのハンドラ
-  const handleNotificationSubscribe = () => {
-    // ここに通知登録のロジックを実装
-    toast.success(`${series.name}の新着通知を登録しました`);
+  const handleNotificationSubscribe = async () => {
+    if (isLoading) return;
+    
+    if (!session?.user) {
+      toast.error('通知を受け取るにはログインが必要です');
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
+      return;
+    }
+
+    if (!series.id) {
+      toast.error('シリーズ情報が正しく設定されていません');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/notifications/series-subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ seriesId: series.id }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setIsSubscribed(data.isSubscribed);
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || '通知登録に失敗しました');
+      }
+    } catch (error) {
+      console.error('シリーズ通知登録エラー:', error);
+      toast.error('通知の登録中にエラーが発生しました');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // メインメディアURLを取得 (メディアURLかimageURLか)
@@ -165,10 +227,11 @@ const SeriesHeader: React.FC<SeriesHeaderProps> = ({ series }) => {
           <div>
             <button
               onClick={handleNotificationSubscribe}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors"
+              disabled={isLoading}
+              className={`flex items-center gap-2 px-4 py-2 ${isSubscribed ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-800 hover:bg-gray-700'} text-white rounded-md transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <FiBell className="h-5 w-5" />
-              <span className="text-sm">新着通知を受け取る</span>
+              <span className="text-sm">このシリーズの新着通知を受け取る</span>
             </button>
           </div>
         </div>

@@ -10,6 +10,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 十分の長さとエントロピーを持つ匿名セッションIDを使用する
+model AnonymousSession {
+  id          String    @id @default(uuid())
+  token       String    @unique // クッキーに保存するトークン
+  expires     DateTime  // 期限日時
+  cart        Cart?     @relation("AnonymousSessionCart")
+  favorites   AnonymousFavorite[]
+  viewHistory ItemViewHistory[] // アイテム視聴履歴
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([token])
+}
+
 model User {
   id                String     @id @default(uuid())
   name              String?
@@ -29,6 +43,19 @@ model User {
   addresses         Address[]        // 追加
   paymentMethods    PaymentMethod[]  // 追加
   favorites         Favorite[]       // 追加
+  notifications     Notification[]   // 通知
+  restockSubscriptions RestockSubscription[] // 再入荷通知登録
+  seriesSubscriptions SeriesSubscription[]  // シリーズ通知登録
+  viewHistory       ItemViewHistory[] // アイテム視聴履歴
+  points            Point[]           // ポイント
+  coupons           Coupon[]          // クーポン
+  userRequests      UserRequest[]     // ユーザー要望
+   // お問い合わせ関連
+  contacts        Contact[]        @relation("UserContacts")
+  assignedContacts Contact[]       @relation("AssignedContacts")
+  contactResponses ContactResponse[]
+  contactNotes    ContactNote[]
+  notificationSettings UserNotificationSettings?
 }
 
 // NextAuth関連モデル
@@ -97,6 +124,21 @@ model Media {
   characters              Character[]         // このメディアを使用しているキャラクター
   categories              Category[]          // このメディアを使用しているカテゴリー
   sliderImages            SliderImage[]       // メインビジュアルスライダーの画像
+  siteInfos               SiteInfo[]          // サイト情報のロゴ画像
+  userIcons               UserIcon[]          // ユーザーアイコン
+}
+
+// ユーザーアイコンモデル
+model UserIcon {
+  id           String    @id @default(uuid())
+  name         String
+  mediaId      String
+  media        Media     @relation(fields: [mediaId], references: [id])
+  isActive     Boolean   @default(true)  // 表示/非表示の状態
+  isDefault    Boolean   @default(false) // デフォルトアイコンかどうか
+  displayOrder Int       @default(999)   // 表示順
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // メインビジュアルスライダーの画像モデル
@@ -129,15 +171,226 @@ model Item {
   updatedAt   DateTime      @updatedAt
   categoryId  String
   category    Category      @relation("CategoryToItem", fields: [categoryId], references: [id])
-  // 以下の2行を削除
-  // characterId String?       // キャラクターID
-  // character   Character?    @relation(fields: [characterId], references: [id])
-  // 代わりに多対多リレーションを追加
   characters  ItemCharacter[] // アイテムに関連付けられた複数のキャラクター
   itemSizes   ItemSize[]    // サイズごとの在庫
   cartItems   CartItem[]
   orderItems  OrderItem[]
   favorites   Favorite[]    // 追加: お気に入り関連
+  anonymousFavorites AnonymousFavorite[] // 匿名ユーザーのお気に入り
+  viewHistory ItemViewHistory[] // 視聴履歴
+  
+  // ポイント関連
+  itemPointRules ItemPointRule[] // アイテム別ポイントルール
+  pointCampaignItems PointCampaignItem[] // ポイントキャンペーン対象アイテム
+  
+  // クーポン関連
+  applicableCoupons CouponTemplateProduct[] // このアイテムに適用可能なクーポン
+  excludedCoupons CouponTemplateExcludedProduct[] // このアイテムを除外するクーポン
+}
+
+// ポイント付与・使用履歴を拡張して追跡元を記録
+model Point {
+  id                      String    @id @default(uuid())
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id])
+  amount                  Int       // ポイント量（正=付与、負=使用）
+  orderId                 String?   // 関連する注文ID（存在する場合）
+  order                   Order?    @relation(fields: [orderId], references: [id])
+  campaignId              String?   // 関連するキャンペーンID（存在する場合）
+  campaign                PointCampaign? @relation(fields: [campaignId], references: [id])
+  type                    String    // "earn", "use", "expire", "adjust"など
+  description             String?   // 説明（管理用）
+  expiresAt               DateTime  // 有効期限
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([campaignId])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+// 基本ポイントルール
+model PointRule {
+  id                      String    @id @default(uuid())
+  defaultRate             Float     // 基本還元率（例：1.0 = 1%）
+  defaultExpiryDays       Int       // デフォルトの有効期限（日数）
+  minPurchaseAmount       Float?    // 最低購入金額（null=制限なし）
+  minPointsToUse          Int?      // 利用可能な最低ポイント数
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// アイテム別ポイントルール
+model ItemPointRule {
+  id                      String    @id @default(uuid())
+  itemId                  String
+  item                    Item      @relation(fields: [itemId], references: [id])
+  pointRate               Float     // このアイテム固有の還元率
+  isActive                Boolean   @default(true)
+  startDate               DateTime? // 開始日（null=無期限）
+  endDate                 DateTime? // 終了日（null=無期限）
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([itemId])
+}
+
+// カテゴリ別ポイントルール
+model CategoryPointRule {
+  id                      String    @id @default(uuid())
+  categoryId              String
+  category                Category  @relation(fields: [categoryId], references: [id])
+  pointRate               Float     // このカテゴリ固有の還元率
+  isActive                Boolean   @default(true)
+  startDate               DateTime? // 開始日（null=無期限）
+  endDate                 DateTime? // 終了日（null=無期限）
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([categoryId])
+}
+
+// ポイントキャンペーン
+model PointCampaign {
+  id                      String    @id @default(uuid())
+  name                    String    // キャンペーン名
+  description             String?   @db.Text
+  multiplier              Float     // ポイント倍率（例：2.0 = 2倍）
+  startDate               DateTime  // キャンペーン開始日
+  endDate                 DateTime  // キャンペーン終了日
+  isActive                Boolean   @default(true)
+  isSpecialEvent          Boolean   @default(false) // 特別イベント（誕生日など）かどうか
+  specialEventType        String?   // イベントタイプ（"birthday", "anniversary"など）
+  targetItems             PointCampaignItem[]
+  targetCategories        PointCampaignCategory[]
+  pointHistory            Point[]   // キャンペーンによるポイント付与履歴
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+// キャンペーン対象アイテム（多対多）
+model PointCampaignItem {
+  id                      String        @id @default(uuid())
+  campaignId              String
+  campaign                PointCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  itemId                  String
+  item                    Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, itemId])
+  @@index([campaignId])
+  @@index([itemId])
+}
+
+// キャンペーン対象カテゴリ（多対多）
+model PointCampaignCategory {
+  id                      String        @id @default(uuid())
+  campaignId              String
+  campaign                PointCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  categoryId              String
+  category                Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, categoryId])
+  @@index([campaignId])
+  @@index([categoryId])
+}
+
+model Coupon {
+  id             String   @id @default(cuid())
+  userId         String
+  code           String   @unique
+  discountType   String // 'percentage' or 'fixed'
+  discountValue  Float
+  minimumPurchase Float?
+  expiresAt      DateTime
+  isUsed         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model CouponTemplate {
+  id                  String   @id @default(cuid())
+  name                String   // テンプレート名
+  description         String?  @db.Text
+  discountType        String   // 'percentage' or 'fixed'
+  discountValue       Float
+  minimumPurchase     Float?
+  validDays           Int      // 発行から有効な日数
+  maxUses             Int?     // 最大使用回数（null=無制限）
+  isActive            Boolean  @default(true)
+  createdBy           String   // 作成した管理者ID
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // 中間テーブルを使用した関連
+  applicableProducts  CouponTemplateProduct[]
+  applicableCategories CouponTemplateCategory[]
+  excludedProducts    CouponTemplateExcludedProduct[]
+  excludedCategories  CouponTemplateExcludedCategory[]
+}
+
+// クーポン適用可能アイテムの中間テーブル
+model CouponTemplateProduct {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  productId        String
+  item             Item           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, productId])
+  @@index([couponTemplateId])
+  @@index([productId])
+}
+
+// クーポン適用可能カテゴリの中間テーブル
+model CouponTemplateCategory {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, categoryId])
+  @@index([couponTemplateId])
+  @@index([categoryId])
+}
+
+// クーポン除外アイテムの中間テーブル
+model CouponTemplateExcludedProduct {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  productId        String
+  item             Item           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, productId])
+  @@index([couponTemplateId])
+  @@index([productId])
+}
+
+// クーポン除外カテゴリの中間テーブル
+model CouponTemplateExcludedCategory {
+  id               String         @id @default(uuid())
+  couponTemplate   CouponTemplate @relation(fields: [couponTemplateId], references: [id], onDelete: Cascade)
+  couponTemplateId String
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponTemplateId, categoryId])
+  @@index([couponTemplateId])
+  @@index([categoryId])
+}
+
+model CouponUsageHistory {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String
+  orderId   String
+  usedAt    DateTime
+  createdAt DateTime @default(now())
 }
 
 // アイテムとキャラクターの多対多関連付けのための中間テーブル
@@ -165,6 +418,7 @@ model ItemSize {
   inventory Int      @default(0) // サイズごとの在庫数
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  restockSubscriptions RestockSubscription[] // 再入荷通知登録
 
   @@unique([itemId, size]) // アイテムごとに各サイズは1つだけ
 }
@@ -180,6 +434,14 @@ model Category {
   media        Media?    @relation(fields: [mediaId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  
+  // ポイント関連
+  categoryPointRules CategoryPointRule[] // カテゴリ別ポイントルール
+  pointCampaignCategories PointCampaignCategory[] // ポイントキャンペーン対象カテゴリ
+  
+  // クーポン関連
+  applicableCoupons CouponTemplateCategory[] // このカテゴリに適用可能なクーポン
+  excludedCoupons CouponTemplateExcludedCategory[] // このカテゴリを除外するクーポン
 }
 
 // キャラクターモデル
@@ -196,9 +458,6 @@ model Character {
   displayOrder      Int              @default(999)  // 表示順
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
-  // 以下の行を削除
-  // items             Item[]           // キャラクターに関連するアイテム
-  // 代わりに多対多リレーションを追加
   items             ItemCharacter[]  // このキャラクターが関連付けられたアイテム
 }
 
@@ -223,15 +482,20 @@ model CharacterSeries {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   characters   Character[] // シリーズに属するキャラクター
+  seriesSubscriptions SeriesSubscription[] // シリーズ通知登録
 }
 
 model Cart {
-  id        String     @id @default(uuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                String     @id @default(uuid())
+  userId            String?    @unique
+  anonymousSessionId String?    @unique
+  user              User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anonymousSession  AnonymousSession? @relation("AnonymousSessionCart", fields: [anonymousSessionId], references: [id], onDelete: Cascade)
+  items             CartItem[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  // 注意: userIdとanonymousSessionIdはアプリケーションレベルでどちらか一方のみが必要と検証する
 }
 
 model CartItem {
@@ -245,8 +509,7 @@ model CartItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([cartId, itemId])
-  @@index([cartId, itemId, size], name: "cart_item_with_size")
+  @@index([cartId, itemId, size])
 }
 
 model Order {
@@ -258,6 +521,7 @@ model Order {
   items             OrderItem[]
   address           String
   paymentReferenceId String?    // Stripe PaymentIntent ID または他の支払い参照ID
+  points            Point[]     // ポイント履歴との関連
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 }
@@ -303,6 +567,20 @@ enum Size {
   L
   XL
   XXL
+  KID_100
+  KID_110
+  KID_120
+  KID_130
+  KID_140
+}
+
+// 通知タイプの列挙型
+enum NotificationType {
+  RESTOCK        // 再入荷通知
+  NEW_SERIES     // 新シリーズ通知
+  NEW_ITEM       // 新アイテム通知
+  PRICE_CHANGE   // 価格変更通知
+  SYSTEM         // システム通知
 }
 
 // 住所モデル
@@ -352,4 +630,239 @@ model Favorite {
   @@unique([userId, itemId])  // 同じアイテムを複数回お気に入りに追加できないようにする
   @@index([userId])
   @@index([itemId])
+}
+
+// 匿名ユーザーのお気に入りモデル
+model AnonymousFavorite {
+  id                String    @id @default(uuid())
+  anonymousSessionId String
+  anonymousSession  AnonymousSession @relation(fields: [anonymousSessionId], references: [id], onDelete: Cascade)
+  itemId            String
+  item              Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([anonymousSessionId, itemId])  // 同じアイテムを複数回お気に入りに追加できないようにする
+  @@index([anonymousSessionId])
+  @@index([itemId])
+}
+
+// 通知モデル
+model Notification {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  content      String           @db.Text
+  type         NotificationType
+  itemId       String?          // アイテム関連の通知の場合
+  characterSeriesId String?     // シリーズ関連の通知の場合
+  isRead       Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([type])
+}
+
+// 再入荷通知登録モデル
+model RestockSubscription {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemSizeId   String
+  itemSize     ItemSize  @relation(fields: [itemSizeId], references: [id], onDelete: Cascade)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, itemSizeId])
+  @@index([userId])
+  @@index([itemSizeId])
+}
+
+// シリーズ通知登録モデル
+model SeriesSubscription {
+  id                 String           @id @default(uuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterSeriesId  String
+  characterSeries    CharacterSeries  @relation(fields: [characterSeriesId], references: [id], onDelete: Cascade)
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([userId, characterSeriesId])
+  @@index([userId])
+  @@index([characterSeriesId])
+}
+
+// ユーザー要望モデル
+model UserRequest {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String        // 'character', 'item', 'service', 'other'
+  title       String
+  description String        @db.Text
+  status      String        @default("pending") // 'pending', 'reviewing', 'completed', 'declined'
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  respondedAt DateTime?    // 回答日時
+  response    String?      @db.Text // 運営からの回答
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// サイト情報モデル
+model SiteInfo {
+  id           String    @id @default(uuid())
+  title        String    // サイト情報タイトル
+  description  String    // 説明
+  subDescription String?  // 追加説明
+  url          String?   // 関連リンクがあればURL
+  imageUrl     String?   // 既存の画像URL（Cloudinary）
+  mediaId      String?   // ロゴ画像参照ID
+  media        Media?    @relation(fields: [mediaId], references: [id])
+  isActive     Boolean   @default(true) // 表示/非表示の状態
+  displayOrder Int       @default(999)  // 表示順
+  slideIndex   Int       @default(0)  // どのスライドに表示するかのインデックス
+  columnIndex  Int       @default(0)  // 2カラム表示される中でどちらかのインデックス(0または1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([slideIndex, columnIndex]) // スライドとカラムでの検索を高速化
+}
+
+// アイテム視聴履歴モデル
+model ItemViewHistory {
+  id                String            @id @default(uuid())
+  userId            String?
+  user              User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId            String
+  item              Item              @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  viewedAt          DateTime          @default(now())
+  anonymousSessionId String?
+  anonymousSession  AnonymousSession? @relation(fields: [anonymousSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([itemId])
+  @@index([anonymousSessionId])
+  @@index([viewedAt])
+}
+
+// お問い合わせステータスの列挙型
+enum ContactStatus {
+  pending
+  inProgress
+  completed
+  spam
+}
+
+// お問い合わせ優先度の列挙型
+enum ContactPriority {
+  low
+  medium
+  high
+}
+
+// お問い合わせモデル
+model Contact {
+  id              String           @id @default(cuid())
+  name            String
+  email           String
+  category        String
+  subject         String
+  message         String           @db.Text
+  status          ContactStatus    @default(pending)
+  priority        ContactPriority  @default(medium)
+  orderNumber     String?
+  userId          String?
+  assignedToUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // リレーション
+  user            User?            @relation("UserContacts", fields: [userId], references: [id])
+  assignedToUser  User?            @relation("AssignedContacts", fields: [assignedToUserId], references: [id])
+  response        ContactResponse?
+  notes           ContactNote[]
+  attachments     ContactAttachment[] // 添付ファイル
+}
+
+// お問い合わせ添付ファイルモデル
+model ContactAttachment {
+  id              String           @id @default(cuid())
+  contactId       String
+  filename        String           // オリジナルのファイル名
+  path            String           // 保存先パス
+  mimetype        String           // ファイルのMIMEタイプ
+  size            Int              // ファイルサイズ（バイト）
+  createdAt       DateTime         @default(now())
+  
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@index([contactId])
+}
+
+// お問い合わせ返信モデル
+model ContactResponse {
+  id              String           @id @default(cuid())
+  contactId       String           @unique
+  message         String           @db.Text
+  respondedById   String
+  respondedAt     DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  respondedBy     User             @relation(fields: [respondedById], references: [id])
+}
+
+// お問い合わせメモモデル
+model ContactNote {
+  id              String           @id @default(cuid())
+  contactId       String
+  content         String           @db.Text
+  createdById     String
+  createdAt       DateTime         @default(now())
+
+  // リレーション
+  contact         Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy       User             @relation(fields: [createdById], references: [id])
+}
+
+// 通知設定モデル
+model UserNotificationSettings {
+  id                        String    @id @default(uuid())
+  userId                    String    @unique
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiveAllNotifications   Boolean   @default(true)
+  receiveSiteNotifications  Boolean   @default(true)
+  receiveEmailNotifications Boolean   @default(true)
+  notificationFrequency     String    @default("realtime") // "realtime", "daily", "weekly"
+  
+  // カテゴリ設定
+  seriesNotifications       Boolean   @default(true)
+  characterNotifications    Boolean   @default(true)
+  waitingNotifications      Boolean   @default(true)
+  pointsNotifications       Boolean   @default(true)
+  couponNotifications       Boolean   @default(true)
+  
+  // ポイント通知設定
+  pointsEarnedNotifications    Boolean   @default(true)
+  pointsExpiringNotifications  Boolean   @default(true)
+  pointsExpiryNoticeDays       Int       @default(14)
+  
+  // クーポン通知設定
+  couponIssuedNotifications    Boolean   @default(true)
+  couponExpiringNotifications  Boolean   @default(true)
+  couponExpiryNoticeDays       Int       @default(7)
+  
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 }

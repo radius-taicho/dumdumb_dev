@@ -41,13 +41,14 @@ const MyPagePage: NextPage = () => {
       <div className="relative overflow-x-hidden">
         {/* メインコンテンツ */}
         <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-72px)]">
+          <div className="flex items-center mb-6">
+            <Link href="/" className="mr-2">
+              <span className="text-gray-500 hover:text-gray-700">
+                &lt; トップに戻る
+              </span>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold mb-8 text-start">マイページ</h1>
-          
-          {session?.user?.email && (
-            <p className="mb-4 text-gray-600">
-              ようこそ、{session.user.name || session.user.email}さん
-            </p>
-          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {/* お買い物履歴 */}
@@ -77,11 +78,11 @@ const MyPagePage: NextPage = () => {
               </div>
             </Link>
 
-            {/* アカウント情報管理 */}
-            <Link href="/mypage/settings" className="block">
+            {/* アカウント情報 */}
+            <Link href="/mypage/account-settings" className="block">
               <div className="border rounded-lg p-4 md:p-6 h-32 md:h-40 flex items-center justify-center hover:bg-gray-50 transition-colors">
                 <h2 className="text-lg md:text-xl font-semibold text-center">
-                  アカウント情報管理
+                  アカウント情報
                 </h2>
               </div>
             </Link>
@@ -95,11 +96,11 @@ const MyPagePage: NextPage = () => {
               </div>
             </Link>
 
-            {/* お支払い先 */}
+            {/* お支払い方法 */}
             <Link href="/mypage/payment-methods" className="block">
               <div className="border rounded-lg p-4 md:p-6 h-32 md:h-40 flex items-center justify-center hover:bg-gray-50 transition-colors">
                 <h2 className="text-lg md:text-xl font-semibold text-center">
-                  お支払い先
+                  お支払い方法
                 </h2>
               </div>
             </Link>
@@ -157,7 +158,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   if (!session) {
     return {
       redirect: {
-        destination: '/auth/login?redirect=/mypage',
+        destination: "/auth/login?redirect=/mypage",
         permanent: false,
       },
     };

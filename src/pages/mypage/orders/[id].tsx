@@ -1,197 +1,281 @@
-import React from "react";
-import { NextPage } from "next";
+import React, { useState, useEffect } from "react";
+import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import Image from "next/image";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../api/auth/[...nextauth]";
+import { prisma } from "@/lib/prisma";
+import { Order, OrderItem, Item, User } from "@prisma/client";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { formatDate, calculateDeliveryDate } from "@/utils/date-formatter";
+import {
+  orderDetailTranslations,
+  getTranslation,
+  getBrowserLanguage,
+} from "@/utils/translations";
 
-const OrderDetailPage: NextPage = () => {
-  const router = useRouter();
-  const { id } = router.query;
+// コンポーネントのインポート
+import ErrorLoadingState from "@/components/orders/ErrorLoadingState";
+import OrderInfo, { parseAddress } from "@/components/orders/OrderInfo";
+import OrderItems from "@/components/orders/OrderItems";
+import RecommendedItems from "@/components/orders/RecommendedItems";
 
-  // 注文詳細データ
-  const orderDetails = {
-    delivery: {
-      name: "山田 太郎",
-      zipCode: "〒123-4567",
-      address: "東京都渋谷区渋谷1-1-1",
-      building: "サンプルマンション101号室",
-    },
-    payment: {
-      method: "支払い方法: クレジットカード",
-      cardNumber: "カード番号: **** **** **** 1234",
-    },
-    purchase: {
-      itemSubtotal: 4800,
-      shippingFee: 980,
-      orderTotal: 5780,
-      billAmount: 5780,
-    },
-    item: {
-      name: "アイテム名",
-      size: "サイズ",
-      price: 4800,
-      orderDate: "2025/2/22",
-      deliveryDate: "2025/2/27",
-      quantity: 1,
-      imageUrl: "/path/to/image.jpg",
-    },
-  };
+// 型定義
+type OrderWithItemsAndUser = Order & {
+  items: (OrderItem & {
+    item: Item;
+  })[];
+  user: User;
+};
 
-  // おすすめアイテムデータ
-  const recommendedItems = [
-    { id: "1", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec1.jpg" },
-    { id: "2", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec2.jpg" },
-    { id: "3", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec3.jpg" },
-    { id: "4", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec4.jpg" },
-    { id: "5", name: "アイテム名", price: 4800, imageUrl: "/path/to/rec5.jpg" },
-  ];
+interface OrderDetailPageProps {
+  order?: OrderWithItemsAndUser;
+  recommendedItems: Item[];
+  error?: string;
+}
+
+const OrderDetailPage: NextPage<OrderDetailPageProps> = ({
+  order,
+  recommendedItems,
+  error,
+}) => {
+  const [language, setLanguage] = useState<string>("ja");
+
+  useEffect(() => {
+    setLanguage(getBrowserLanguage());
+  }, []);
+
+  const t = getTranslation(orderDetailTranslations, language);
+
+  // ページの読み込み中またはエラーの場合
+  if (!order) {
+    return (
+      <ProtectedRoute>
+        <ErrorLoadingState
+          isLoading={!error}
+          error={error}
+          backToOrdersText={t.backToOrders}
+          loadingText={t.loading}
+        />
+      </ProtectedRoute>
+    );
+  }
+
+  // 注文日と配送日の計算
+  const orderDate = formatDate(order.createdAt, language);
+  const deliveryDate = calculateDeliveryDate(order.createdAt, language);
+
+  // 住所の解析
+  const addressDetails = parseAddress(order.address);
+
+  // 支払い方法の判定（paymentReferenceIdから推測）
+  let paymentMethod = t.creditCard;
+  let maskedCardNumber = "**** **** **** ****";
+
+  if (order.paymentReferenceId) {
+    if (order.paymentReferenceId.startsWith("amazon_pay_")) {
+      paymentMethod = t.amazonPay;
+      maskedCardNumber = "";
+    } else if (order.paymentReferenceId.startsWith("other_payment_")) {
+      paymentMethod = t.otherPayment;
+      maskedCardNumber = "";
+    } else if (order.paymentReferenceId.startsWith("pi_")) {
+      // Stripe Payment Intent ID (pi_から始まる)
+      paymentMethod = t.creditCard;
+      maskedCardNumber = "**** **** **** ****";
+    }
+  }
+
+  // 合計金額の計算
+  const itemSubtotal = order.items.reduce(
+    (total, item) => total + Number(item.price) * item.quantity,
+    0
+  );
+
+  // 送料と税金の計算（仮の実装）
+  const tax = Math.floor(itemSubtotal * 0.1); // 10%の消費税
+  const shippingFee = 980; // 固定送料
+  const orderTotal = Number(order.totalAmount);
 
   return (
-    <>
+    <ProtectedRoute>
       <Head>
-        <title>お買い物履歴詳細 | DumDumb</title>
-        <meta name="description" content={`注文番号 #${id} の詳細情報`} />
+        <title>{t.pageTitle} | DumDumb</title>
+        <meta
+          name="description"
+          content={t.pageDescription.replace("{orderId}", order.id)}
+        />
       </Head>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">お買い物履歴詳細</h1>
+        <h1 className="text-2xl font-bold mb-6">{t.pageTitle}</h1>
 
         {/* 注文情報エリア */}
-        <div className="border rounded-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* お届け先 */}
-            <div>
-              <h2 className="font-semibold mb-4">お届け先</h2>
-              <p>{orderDetails.delivery.name}</p>
-              <p>{orderDetails.delivery.zipCode}</p>
-              <p>{orderDetails.delivery.address}</p>
-              <p>{orderDetails.delivery.building}</p>
-            </div>
-
-            {/* お支払い情報 */}
-            <div>
-              <h2 className="font-semibold mb-4">お支払い情報</h2>
-              <p>{orderDetails.payment.method}</p>
-              <p>{orderDetails.payment.cardNumber}</p>
-            </div>
-
-            {/* 購入明細 */}
-            <div>
-              <h2 className="font-semibold mb-4">購入明細</h2>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <p>アイテムの小計</p>
-                  <p>¥{orderDetails.purchase.itemSubtotal.toLocaleString()}</p>
-                </div>
-                <div className="flex justify-between">
-                  <p>送料</p>
-                  <p>¥{orderDetails.purchase.shippingFee.toLocaleString()}</p>
-                </div>
-                <div className="flex justify-between">
-                  <p>注文合計</p>
-                  <p>¥{orderDetails.purchase.orderTotal.toLocaleString()}</p>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <p>ご請求額</p>
-                  <p>¥{orderDetails.purchase.billAmount.toLocaleString()}</p>
-                </div>
-              </div>
-
-              {/* 領収書リンク */}
-              <div className="mt-4 text-right">
-                <Link
-                  href="#"
-                  className="text-orange-500 hover:text-orange-600"
-                >
-                  領収書
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        <OrderInfo
+          addressDetails={addressDetails}
+          paymentMethod={paymentMethod}
+          maskedCardNumber={maskedCardNumber}
+          orderId={order.id}
+          itemSubtotal={itemSubtotal}
+          tax={tax}
+          shippingFee={shippingFee}
+          orderTotal={orderTotal}
+          translations={{
+            deliveryAddress: t.deliveryAddress,
+            paymentInfo: t.paymentInfo,
+            paymentMethod: t.paymentMethod,
+            cardNumber: t.cardNumber,
+            orderId: t.orderId,
+            purchaseSummary: t.purchaseSummary,
+            subtotal: t.subtotal,
+            tax: t.tax,
+            shippingFee: t.shippingFee,
+            totalAmount: t.totalAmount,
+            printPage: t.printPage,
+          }}
+        />
 
         {/* アイテム詳細エリア */}
-        <div className="border rounded-lg p-6 mb-12">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* アイテム画像 */}
-            <div className="w-28 h-28 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center">
-              {/* 実際の画像を使用する場合はこちらを使用 */}
-              {/* <Image 
-                src={orderDetails.item.imageUrl} 
-                alt={orderDetails.item.name} 
-                width={112} 
-                height={112} 
-                className="object-cover"
-              /> */}
-
-              {/* サンプル画像（青いモンスター） */}
-              <div className="w-20 h-20 bg-blue-700 rounded-full flex flex-col items-center justify-center">
-                <div className="flex mb-1">
-                  <div className="w-3 h-3 bg-white rounded-full mr-2"></div>
-                  <div className="w-3 h-3 bg-white rounded-full"></div>
-                </div>
-                <div className="w-6 h-1 bg-white rounded-full"></div>
-              </div>
-            </div>
-
-            {/* アイテム情報 */}
-            <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div>
-                <h3 className="font-medium underline">
-                  {orderDetails.item.name}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {orderDetails.item.size}
-                </p>
-                <p className="font-medium mt-2">
-                  ¥{orderDetails.item.price.toLocaleString()}
-                </p>
-              </div>
-
-              <div className="md:text-right">
-                <div className="mb-4">
-                  <p className="text-sm">
-                    <span className="text-gray-600 mr-2">注文日</span>
-                    <span>{orderDetails.item.orderDate}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-gray-600 mr-2">お届け日</span>
-                    <span>{orderDetails.item.deliveryDate}</span>
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end">
-                  <p>
-                    <span className="text-gray-600 mr-1">×</span>
-                    <span>{orderDetails.item.quantity}</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <OrderItems
+          items={order.items}
+          orderDate={orderDate}
+          deliveryDate={deliveryDate}
+          translations={{
+            purchasedItems: t.purchasedItems,
+            orderDate: t.orderDate,
+            deliveryDate: t.deliveryDate,
+            sizeLabel: t.sizeLabel,
+          }}
+        />
 
         {/* おすすめアイテムセクション */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">dumdumbからのオススメ</h2>
+        <RecommendedItems items={recommendedItems} title={t.recommendations} />
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {recommendedItems.map((item) => (
-              <div key={item.id} className="border p-2">
-                <div className="aspect-square bg-gray-100 mb-3 flex items-center justify-center">
-                  <p className="text-sm text-gray-500">アイテム画像</p>
-                </div>
-                <div className="p-2">
-                  <h3 className="text-sm mb-1">{item.name}</h3>
-                  <p className="text-sm">¥{item.price.toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* ナビゲーションボタン */}
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/mypage/orders"
+            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
+          >
+            {t.backToOrderList}
+          </Link>
         </div>
       </div>
-    </>
+    </ProtectedRoute>
   );
+};
+
+// サーバーサイドでの認証チェックとデータ取得
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/auth/login?redirect=/mypage/orders",
+        permanent: false,
+      },
+    };
+  }
+
+  // 注文IDを取得
+  const { id } = context.params || {};
+
+  if (!id || typeof id !== "string") {
+    return {
+      props: {
+        error: "有効な注文IDが指定されていません。",
+        recommendedItems: [],
+      },
+    };
+  }
+
+  try {
+    // 注文データを取得（ユーザーとアイテムを含む）
+    const order = await prisma.order.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        items: {
+          include: {
+            item: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // 注文がない、または他のユーザーの注文の場合
+    if (!order || order.userId !== session.user.id) {
+      return {
+        props: {
+          error: "注文が見つからないか、アクセス権限がありません。",
+          recommendedItems: [],
+        },
+      };
+    }
+
+    // おすすめアイテムを取得（単純に最新の5アイテムを表示）
+    const recommendedItems = await prisma.item.findMany({
+      where: {
+        inventory: {
+          gt: 0, // 在庫があるアイテムのみ
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    });
+
+    // 日付型をシリアライズできる形式に変換
+    const serializedOrder = {
+      ...order,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      totalAmount: Number(order.totalAmount),
+      items: order.items.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+        price: Number(item.price),
+        item: {
+          ...item.item,
+          createdAt: item.item.createdAt.toISOString(),
+          updatedAt: item.item.updatedAt.toISOString(),
+          price: Number(item.item.price),
+        },
+      })),
+    };
+
+    const serializedRecommendedItems = recommendedItems.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+      price: Number(item.price),
+    }));
+
+    return {
+      props: {
+        order: serializedOrder,
+        recommendedItems: serializedRecommendedItems,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    return {
+      props: {
+        error: "データの取得中にエラーが発生しました。",
+        recommendedItems: [],
+      },
+    };
+  }
 };
 
 export default OrderDetailPage;

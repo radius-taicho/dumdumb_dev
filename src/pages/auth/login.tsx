@@ -12,25 +12,25 @@ const LoginPage: NextPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { data: session, status } = useSession();
   const router = useRouter();
   const { redirect } = router.query;
 
   // 既にログインしている場合はリダイレクト
   useEffect(() => {
-    if (status === 'authenticated') {
-      const redirectPath = typeof redirect === 'string' ? redirect : '/';
+    if (status === "authenticated") {
+      const redirectPath = typeof redirect === "string" ? redirect : "/";
       router.push(redirectPath);
     }
   }, [status, router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // エラーメッセージをクリア
     setErrorMessage("");
-    
+
     // 入力検証
     if (!email || !password) {
       setErrorMessage("メールアドレスとパスワードを入力してください");
@@ -41,7 +41,7 @@ const LoginPage: NextPage = () => {
       setIsSubmitting(true);
 
       // NextAuthでログイン
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         redirect: false,
         email,
         password,
@@ -55,9 +55,9 @@ const LoginPage: NextPage = () => {
       if (result?.ok) {
         // ログイン成功
         toast.success("ログインしました");
-        
+
         // リダイレクト先の処理
-        const redirectPath = typeof redirect === 'string' ? redirect : '/';
+        const redirectPath = typeof redirect === "string" ? redirect : "/";
         router.push(redirectPath);
       }
     } catch (err) {
@@ -174,10 +174,10 @@ const LoginPage: NextPage = () => {
               アカウントをお持ちでない方は
             </span>
             <Link
-              href="/auth/register"
+              href="/auth/signup"
               className="text-orange-500 hover:text-orange-600 font-medium"
             >
-              新規登録
+              アカウント作成
             </Link>
           </div>
         </div>

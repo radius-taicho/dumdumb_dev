@@ -7,12 +7,12 @@
 // - loading → status === 'loading'
 // - error → なし (NextAuthの内部処理)
 // - login → signIn
-// - register → APIを直接呼び出し
+// - signup → APIを直接呼び出し
 // - logout → signOut
 
-import React, { createContext, ReactNode } from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
-import { toast } from 'react-hot-toast';
+import React, { createContext, ReactNode } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 // この型定義は参照用に残しています
 type UserWithoutPassword = {
@@ -28,7 +28,7 @@ type AuthContextType = {
   loading: boolean;
   error: null;
   login: () => Promise<boolean>;
-  register: () => Promise<boolean>;
+  signup: () => Promise<boolean>;
   logout: () => Promise<boolean>;
 };
 
@@ -37,35 +37,39 @@ const AuthContext = createContext<AuthContextType>({
   loading: false,
   error: null,
   login: async () => false,
-  register: async () => false,
+  signup: async () => false,
   logout: async () => false,
 });
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   return <>{children}</>;
 };
 
 export const useAuth = () => {
-  console.warn('useAuth() は非推奨です。代わりに next-auth/react の useSession() を使用してください。');
-  
+  console.warn(
+    "useAuth() は非推奨です。代わりに next-auth/react の useSession() を使用してください。"
+  );
+
   const { data: session, status } = useSession();
-  
+
   // 最小限の互換性を提供
   return {
     user: session?.user || null,
-    loading: status === 'loading',
+    loading: status === "loading",
     error: null,
-    login: async () => { 
-      toast.error('このメソッドは非推奨です。signIn()を使用してください'); 
-      return false; 
+    login: async () => {
+      toast.error("このメソッドは非推奨です。signIn()を使用してください");
+      return false;
     },
-    register: async () => { 
-      toast.error('このメソッドは非推奨です。APIを直接呼び出してください');
-      return false; 
+    signup: async () => {
+      toast.error("このメソッドは非推奨です。APIを直接呼び出してください");
+      return false;
     },
-    logout: async () => { 
+    logout: async () => {
       await signOut();
-      return true; 
+      return true;
     },
   };
 };

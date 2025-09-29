@@ -6,6 +6,9 @@ type OrderSummaryProps = {
   shippingFee: number;
   tax: number;
   total: number;
+  pointsDiscount: number;
+  couponDiscount: number;
+  finalTotal: number;
   isOrderButtonEnabled: boolean;
   isProcessing: boolean;
   onPlaceOrder: () => void;
@@ -16,6 +19,9 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
   shippingFee,
   tax,
   total,
+  pointsDiscount,
+  couponDiscount,
+  finalTotal,
   isOrderButtonEnabled,
   isProcessing,
   onPlaceOrder
@@ -41,11 +47,23 @@ const OrderSummary: React.FC<OrderSummaryProps> = ({
           <span>内消費税</span>
           <span className="font-medium">¥{tax.toLocaleString()}</span>
         </div>
+        {pointsDiscount > 0 && (
+          <div className="flex justify-between text-orange-600">
+            <span>ポイント使用</span>
+            <span className="font-medium">-¥{pointsDiscount.toLocaleString()}</span>
+          </div>
+        )}
+        {couponDiscount > 0 && (
+          <div className="flex justify-between text-orange-600">
+            <span>クーポン割引</span>
+            <span className="font-medium">-¥{couponDiscount.toLocaleString()}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between font-semibold mb-8">
         <span>合計</span>
-        <span className="text-xl">¥{total.toLocaleString()}</span>
+        <span className="text-xl">¥{finalTotal.toLocaleString()}</span>
       </div>
       
       <button

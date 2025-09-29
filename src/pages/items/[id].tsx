@@ -1,12 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { NextPage, GetServerSideProps } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma-client";
 import { Size } from "@prisma/client";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
+import { useAnonymousSession } from "@/contexts/anonymous-session";
+import { recordItemView } from "@/lib/recordItemView";
 
 // インポートを追加
 import ImageGallerySticky from "@/components/items/ImageGallerySticky";
@@ -14,6 +16,7 @@ import ItemInfo from "@/components/items/ItemInfo";
 import RestockNotification from "@/components/items/RestockNotification";
 import CharacterSection from "@/components/items/CharacterSection";
 import RelatedItems from "@/components/items/RelatedItems";
+import ViewedTogetherItems from "@/components/items/ViewedTogetherItems";
 
 // 型定義
 type CharacterData = {
@@ -54,8 +57,18 @@ type ItemDetailPageProps = {
 const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
   const router = useRouter();
   const { data: session } = useSession();
+  const { anonymousSessionToken } = useAnonymousSession();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const productSectionRef = useRef<HTMLElement>(null);
+
+  // アイテム詳細ページにアクセスしたときに視聴履歴を記録
+  useEffect(() => {
+    // 有効なアイテムがある場合のみ記録
+    if (item && item.id) {
+      recordItemView(item.id, anonymousSessionToken);
+    }
+  }, [item, anonymousSessionToken]);
 
   if (error) {
     return (
@@ -199,8 +212,28 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
           images={item.images}
           containerRef={productSectionRef}
         />
-        <ItemInfo item={item} onAddToCart={handleAddToCart} />
-        <RestockNotification />
+        <ItemInfo 
+          item={item} 
+          onAddToCart={handleAddToCart} 
+          onSizeChange={(size) => setSelectedSize(size)}
+        />
+        {/* 在庫がない場合、または選択されたサイズの在庫がない場合のみ表示 */}
+        {item.hasSizes && selectedSize && 
+          item.itemSizes.find(s => s.size === selectedSize)?.inventory === 0 && (
+          <RestockNotification 
+            itemId={item.id} 
+            size={selectedSize.toString()} 
+            isVisible={true} 
+          />
+        )}
+        {/* サイズなしアイテムで在庫がない場合 */}
+        {!item.hasSizes && item.inventory === 0 && (
+          <RestockNotification 
+            itemId={item.id} 
+            size="NONE" 
+            isVisible={true} 
+          />
+        )}
       </section>
 
       {/* 複数キャラクターを全て表示するように変更 */}
@@ -210,6 +243,9 @@ const ItemDetailPage: NextPage<ItemDetailPageProps> = ({ item, error }) => {
       
       {/* 関連アイテム（最初のキャラクターに基づく） */}
       <RelatedItems characterId={characterIdForRelated} currentItemId={item.id} />
+      
+      {/* このアイテムを見た人はこれも見ています */}
+      <ViewedTogetherItems itemId={item.id} />
     </>
   );
 };

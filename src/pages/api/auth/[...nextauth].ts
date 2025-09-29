@@ -1,7 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma-client";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
@@ -59,6 +59,20 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        
+        // セッションが更新されるたびに最新のユーザー情報を取得
+        if (token.id) {
+          const user = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { name: true, email: true, image: true }
+          });
+          
+          if (user) {
+            session.user.name = user.name;
+            session.user.email = user.email;
+            session.user.image = user.image;
+          }
+        }
       }
       return session;
     },

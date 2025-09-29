@@ -4,12 +4,9 @@ import { FiChevronRight } from "react-icons/fi";
 
 // スライダーの設定（定数）
 const SLIDER_CONFIG = {
-  // サイズ設定（単位: px）
-  containerHeight: 608, // 全体コンテナの高さ
-  contentHeight: 560, // スライド内コンテンツの高さ
-  navigationHeight: 48, // ナビゲーションエリアの高さ (containerHeight - contentHeight)
-  aspectRatio: "16/9", // 画像コンテナのアスペクト比（幅/高さ）
-  objectFit: "fill", // 画像のフィット方法（'cover', 'contain', 'fill'）
+  // アスペクト比設定（1366:768 = 16:9）
+  aspectRatio: 16 / 9, // 画像の元のアスペクト比
+  objectFit: "contain", // 画像のフィット方法（アスペクト比を保持）
 
   // スライド設定
   autoplayInterval: 8000, // 自動スライドの間隔 (ミリ秒)
@@ -30,8 +27,19 @@ type SliderImage = {
   link: string | null;
 };
 
+// デフォルトスライドデータ
+const DEFAULT_SLIDES: SliderImage[] = [
+  {
+    id: "default-1",
+    title: "メインビジュアル",
+    alt: "メインビジュアル画像",
+    url: "/images/mainvisual1.png",
+    link: null,
+  },
+];
+
 export default function MainVisualSlider(): JSX.Element {
-  const [slides, setSlides] = useState<SliderImage[]>([]);
+  const [slides, setSlides] = useState<SliderImage[]>(DEFAULT_SLIDES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -58,10 +66,17 @@ export default function MainVisualSlider(): JSX.Element {
 
         const data = await response.json();
         console.log("Fetched slider images:", data);
-        setSlides(data);
+        
+        // APIからデータが取得できた場合は、デフォルトスライドと合わせて表示
+        // もしくはAPIデータのみを表示したい場合は、setSlides(data);
+        if (data && data.length > 0) {
+          setSlides(data);
+        }
+        // APIデータがない場合は、デフォルトスライドを維持
       } catch (err) {
         console.error("Error fetching slider images:", err);
         setError("スライダー画像の読み込みに失敗しました");
+        // エラーが発生した場合もデフォルトスライドを維持
       } finally {
         setLoading(false);
       }
@@ -70,8 +85,7 @@ export default function MainVisualSlider(): JSX.Element {
     fetchSliderImages();
   }, []);
 
-  // データ取得前はスライドを表示しない
-  // 表示するスライドはAPIから取得したデータのみを使用
+  // 表示するスライドはAPIから取得したデータまたはデフォルトスライド
   const displaySlides = slides;
 
   // タイマーの開始
@@ -152,7 +166,7 @@ export default function MainVisualSlider(): JSX.Element {
 
   // 表示状態に基づいてタイマーを制御
   useEffect(() => {
-    // ロード中またはスライドがない場合はタイマーを開始しない
+    // スライドがある場合はタイマーを開始（ロードが完了してから）
     if (isVisible && displaySlides.length > 1 && !loading) {
       startTimers();
     } else {
@@ -174,7 +188,7 @@ export default function MainVisualSlider(): JSX.Element {
         clearInterval(progressRef.current);
       }
     };
-  }, [isVisible, startTimers, displaySlides.length]);
+  }, [isVisible, startTimers, displaySlides.length, loading]);
 
   // スライドを特定のインデックスに移動させる関数
   const goToSlide = (index: number) => {
@@ -198,40 +212,24 @@ export default function MainVisualSlider(): JSX.Element {
   return (
     <div
       ref={sliderRef}
-      className="relative bg-white overflow-hidden"
-      style={{
-        height: `${SLIDER_CONFIG.containerHeight}px`,
-      }}
+      className="relative bg-gray-50 p-4 md:p-6 lg:p-8"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      {/* メインスライダー */}
-      <div className="w-full h-full relative">
-        {loading || displaySlides.length === 0 ? (
-          // ローディング中またはデータがない場合
-          <div
-            className="bg-white flex items-center justify-center"
-            style={{ height: `${SLIDER_CONFIG.contentHeight}px` }}
-          >
-            {loading ? (
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400"></div>
-            ) : (
-              <p>表示するスライド画像がありません</p>
-            )}
-          </div>
-        ) : (
-          // スライド表示
-          <div className="relative w-full h-full overflow-hidden">
+      <div className="w-full max-w-2xl sm:max-w-3xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto">
+        {/* メインスライダー - アスペクト比16:9で固定 */}
+        <div className="w-full relative rounded-2xl overflow-hidden shadow-lg" style={{ aspectRatio: SLIDER_CONFIG.aspectRatio }}>
+          {/* スライド表示 - デフォルトスライドがあるので常に表示 */}
+          <div className="absolute inset-0 overflow-hidden">
             {displaySlides.map((slide, index) => (
               <div
                 key={slide.id}
                 className={`absolute inset-0 transition-opacity duration-300 ${
                   index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
                 }`}
-                style={{ height: `${SLIDER_CONFIG.contentHeight}px` }}
               >
                 {/* 画像コンテナ */}
-                <div className="w-full h-full overflow-hidden">
+                <div className="w-full h-full overflow-hidden bg-gray-100">
                   {slide.link ? (
                     <Link href={slide.link} className="block w-full h-full">
                       <img
@@ -261,108 +259,111 @@ export default function MainVisualSlider(): JSX.Element {
               </div>
             ))}
           </div>
-        )}
 
-        {/* ページネーションドット - APIからデータがロードされた場合のみ表示 */}
-        {!loading && displaySlides.length > 0 && (
-          <div
-            className="absolute bottom-0 w-full h-12 bg-white flex items-center justify-center"
-            style={{ zIndex: 20 }}
-          >
-            <div className="flex gap-[10px] items-center">
+          {/* 前へボタン - 複数スライドがある場合のみ表示 */}
+          {displaySlides.length > 1 && (
+            <button
+              onClick={prevSlide}
+              className={`absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/80 hover:bg-white z-20 flex items-center justify-center transition-all duration-300 ${
+                !showControls && "opacity-0"
+              }`}
+              style={{
+                width: `${SLIDER_CONFIG.navButtonSize * 3}px`,
+                height: `${SLIDER_CONFIG.navButtonSize * 3}px`,
+                opacity: showControls ? SLIDER_CONFIG.navButtonOpacity : 0,
+              }}
+              aria-label="前のスライド"
+            >
+              <FiChevronRight
+                style={{
+                  height: `${SLIDER_CONFIG.navButtonSize}px`,
+                  width: `${SLIDER_CONFIG.navButtonSize}px`,
+                  transform: "rotate(180deg)",
+                }}
+              />
+            </button>
+          )}
+
+          {/* 次へボタン - 複数スライドがある場合のみ表示 */}
+          {displaySlides.length > 1 && (
+            <button
+              onClick={nextSlide}
+              className={`absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/80 hover:bg-white z-20 flex items-center justify-center transition-all duration-300 ${
+                !showControls && "opacity-0"
+              }`}
+              style={{
+                width: `${SLIDER_CONFIG.navButtonSize * 3}px`,
+                height: `${SLIDER_CONFIG.navButtonSize * 3}px`,
+                opacity: showControls ? SLIDER_CONFIG.navButtonOpacity : 0,
+              }}
+              aria-label="次のスライド"
+            >
+              <FiChevronRight
+                style={{
+                  height: `${SLIDER_CONFIG.navButtonSize}px`,
+                  width: `${SLIDER_CONFIG.navButtonSize}px`,
+                }}
+              />
+            </button>
+          )}
+        </div>
+
+        {/* ページネーションドット - 画像の下部に表示 */}
+        {displaySlides.length > 1 && (
+          <div className="flex justify-center mt-6">
+            <div className="flex gap-[10px] items-center bg-white/80 rounded-full px-4 py-2 shadow-sm">
               {displaySlides.map((dot, dotIndex) => (
-              <div key={dot.id} className="relative">
-                <button
-                  onClick={() => goToSlide(dotIndex)}
-                  className={`w-4 h-4 rounded-lg transition-colors duration-300 ${
-                    dotIndex === currentIndex ? "bg-[#595959]" : "bg-[#d9d9d9]"
-                  }`}
-                  aria-label={`スライド${dotIndex + 1}に移動`}
-                />
+                <div key={dot.id} className="relative">
+                  <button
+                    onClick={() => goToSlide(dotIndex)}
+                    className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                      dotIndex === currentIndex
+                        ? "bg-[#595959]"
+                        : "bg-[#d9d9d9]"
+                    }`}
+                    aria-label={`スライド${dotIndex + 1}に移動`}
+                  />
 
-                {SLIDER_CONFIG.progressAnimation &&
-                  dotIndex === currentIndex && (
-                    <svg
-                      className="absolute top-0 left-0 w-6 h-6 -rotate-90"
-                      viewBox="0 0 24 24"
-                      style={{
-                        transform: "translate(-4px, -2.5px) rotate(-90deg)", // 中央に配置するためのオフセット
-                      }}
-                    >
-                      {/* 背景円（透明） */}
-                      <circle
-                        className="text-transparent"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        strokeWidth="3"
-                        fill="none"
-                        stroke="currentColor"
-                      />
-                      {/* 進行インジケーター */}
-                      <circle
-                        className="text-black" // 黒い色を使用
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        strokeWidth="3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeDasharray={`${2 * Math.PI * 10}`}
-                        strokeDashoffset={`${
-                          2 * Math.PI * 10 * (1 - progress / 100)
-                        }`}
-                      />
-                    </svg>
-                  )}
-              </div>
-            ))}
+                  {SLIDER_CONFIG.progressAnimation &&
+                    dotIndex === currentIndex && (
+                      <svg
+                        className="absolute top-0 left-0 w-5 h-5 -rotate-90"
+                        viewBox="0 0 20 20"
+                        style={{
+                          transform: "translate(-2px, -2px) rotate(-90deg)",
+                        }}
+                      >
+                        {/* 背景円（透明） */}
+                        <circle
+                          className="text-transparent"
+                          cx="10"
+                          cy="10"
+                          r="8"
+                          strokeWidth="2"
+                          fill="none"
+                          stroke="currentColor"
+                        />
+                        {/* 進行インジケーター */}
+                        <circle
+                          className="text-black"
+                          cx="10"
+                          cy="10"
+                          r="8"
+                          strokeWidth="2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeDasharray={`${2 * Math.PI * 8}`}
+                          strokeDashoffset={`${
+                            2 * Math.PI * 8 * (1 - progress / 100)
+                          }`}
+                        />
+                      </svg>
+                    )}
+                </div>
+              ))}
             </div>
           </div>
         )}
-
-        {/* 前へボタン */}
-        <button
-          onClick={prevSlide}
-          className={`absolute left-6 top-1/2 transform -translate-y-1/2 rounded-full bg-[#d9d9d9] z-20 flex items-center justify-center transition-opacity duration-300 ${
-            !showControls && "opacity-0"
-          }`}
-          style={{
-            width: `${SLIDER_CONFIG.navButtonSize * 3}px`,
-            height: `${SLIDER_CONFIG.navButtonSize * 3}px`,
-            opacity: showControls ? SLIDER_CONFIG.navButtonOpacity : 0,
-          }}
-          aria-label="前のスライド"
-        >
-          <FiChevronRight
-            style={{
-              height: `${SLIDER_CONFIG.navButtonSize}px`,
-              width: `${SLIDER_CONFIG.navButtonSize}px`,
-              transform: "rotate(180deg)",
-            }}
-          />
-        </button>
-
-        {/* 次へボタン */}
-        <button
-          onClick={nextSlide}
-          className={`absolute right-6 top-1/2 transform -translate-y-1/2 rounded-full bg-[#d9d9d9] z-20 flex items-center justify-center transition-opacity duration-300 ${
-            !showControls && "opacity-0"
-          }`}
-          style={{
-            width: `${SLIDER_CONFIG.navButtonSize * 3}px`,
-            height: `${SLIDER_CONFIG.navButtonSize * 3}px`,
-            opacity: showControls ? SLIDER_CONFIG.navButtonOpacity : 0,
-          }}
-          aria-label="次のスライド"
-        >
-          <FiChevronRight
-            style={{
-              height: `${SLIDER_CONFIG.navButtonSize}px`,
-              width: `${SLIDER_CONFIG.navButtonSize}px`,
-            }}
-          />
-        </button>
       </div>
     </div>
   );
